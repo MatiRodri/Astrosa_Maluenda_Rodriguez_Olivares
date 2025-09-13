@@ -1,0 +1,30 @@
+<ion-content [fullscreen]="true">
+
+  <div style="padding: 16px; display: flex; justify-content: center;">
+    <ion-img src="assets/logo.jpg" alt="Imbitis logo" style="max-width: 240px;"></ion-img>
+  </div>
+  <div style="padding: 16px; text-align: center;">
+    <h2>Bienvenido a Imbitis</h2>
+  </div>
+
+  <div style="padding: 0 16px; display: flex; justify-content: center;">
+    <div style="width: 100%; max-width: 280px;">
+      <ion-grid fixed>
+        <ion-row>
+          <ion-col size="12">
+            <ion-button expand="block" color="secondary" routerLink="/instrucciones">
+              Instrucciones
+            </ion-button>
+          </ion-col>
+        </ion-row>
+        <ion-row>
+          <ion-col size="12">
+            <ion-button expand="block" color="danger" routerLink="/emergencias">
+              EMERGENCIA
+            </ion-button>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </div>
+  </div>
+</ion-content>

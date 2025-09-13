@@ -1,0 +1,7 @@
+{
+  "name": "imbitis",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
