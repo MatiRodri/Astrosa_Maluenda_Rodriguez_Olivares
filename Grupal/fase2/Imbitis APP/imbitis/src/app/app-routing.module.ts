@@ -19,6 +19,10 @@ const routes: Routes = [
     path: 'emergencias',
     loadChildren: () => import('./emergencias/emergencias.module').then( m => m.EmergenciasPageModule)
   },
+  {
+    path: 'settings',
+    loadChildren: () => import('./settings/settings.module').then(m => m.SettingsPageModule)
+  },
 ];
 
 @NgModule({
