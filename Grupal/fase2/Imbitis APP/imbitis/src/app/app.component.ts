@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { AlertController } from '@ionic/angular';
+﻿import { Component, OnInit } from '@angular/core';
+import { AlertController, ToastController } from '@ionic/angular';
 import { OverlayWidgetService } from './core/overlay-widget.service';
 
 @Component({
@@ -11,6 +11,7 @@ import { OverlayWidgetService } from './core/overlay-widget.service';
 export class AppComponent implements OnInit {
   constructor(
     private alertController: AlertController,
+    private toastController: ToastController,
     private overlayWidget: OverlayWidgetService
   ) {}
 
@@ -21,33 +22,45 @@ export class AppComponent implements OnInit {
         await this.presentWidgetPrompt();
       }
     } catch {
-      // Si localStorage falla, no bloqueamos la app
+      // ignore storage errors
     }
   }
 
   private async presentWidgetPrompt() {
     const alert = await this.alertController.create({
       header: 'Imbitis',
-      message: '¿Quieres habilitar el widget de la aplicación?',
+      message: 'Quieres habilitar el widget de la aplicacion?',
       buttons: [
         {
           text: 'No',
           role: 'cancel',
-          handler: () => {
+          handler: async () => {
             localStorage.setItem('hasAskedWidget', 'true');
+            localStorage.setItem('widgetEnabled', 'false');
+            await this.overlayWidget.disableWidget();
           },
         },
         {
-          text: 'Sí',
+          text: 'Si',
           handler: async () => {
-            localStorage.setItem('widgetEnabled', 'true');
             localStorage.setItem('hasAskedWidget', 'true');
-            // Intentar habilitar el widget si es Android nativo
-            try { await this.overlayWidget.enableWidget(); } catch {}
+            const success = await this.overlayWidget.enableWidget();
+            if (!success) {
+              await this.presentPermissionToast();
+            }
           },
         },
       ],
     });
     await alert.present();
+  }
+
+  private async presentPermissionToast() {
+    const toast = await this.toastController.create({
+      message: 'No se pudo habilitar el widget. Revisa el permiso de superposicion.',
+      duration: 3500,
+      position: 'bottom',
+    });
+    await toast.present();
   }
 }

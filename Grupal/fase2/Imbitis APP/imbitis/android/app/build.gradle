@@ -25,13 +25,13 @@ android {
     // (debug por defecto)
   }
 
-  // 🔧 Fuerza Java 17 para evitar "invalid source release: 21"
+  // Fuerza Java 21 para alinear con AGP 8.7 y JDK 21
   compileOptions {
-    sourceCompatibility JavaVersion.VERSION_17
-    targetCompatibility JavaVersion.VERSION_17
+    sourceCompatibility JavaVersion.VERSION_21
+    targetCompatibility JavaVersion.VERSION_21
   }
-  // ⚠️ No pongo kotlinOptions aquí para evitar error si este módulo no usa Kotlin.
-  // Si tu app usa Kotlin, ya lo forzamos a 17 desde el build.gradle raíz con plugins.withId(...)
+  // No incluyo kotlinOptions aqui para evitar errores si este modulo no usa Kotlin.
+  // Si tu app usa Kotlin, ya lo forzamos a 21 desde el build.gradle raiz con plugins.withId(...)
 }
 
 repositories {

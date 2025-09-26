@@ -3,26 +3,89 @@
     <ion-buttons slot="start">
       <ion-back-button text="Volver" defaultHref="/home"></ion-back-button>
     </ion-buttons>
-    <ion-title>instrucciones</ion-title>
+    <ion-title>Instrucciones</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
   <ion-header collapse="condense">
     <ion-toolbar>
-      <ion-title size="large">instrucciones</ion-title>
+      <ion-title size="large">Instrucciones</ion-title>
     </ion-toolbar>
   </ion-header>
+
   <ion-searchbar placeholder="Buscar" (ionInput)="onSearchChange($event)" debounce="150"></ion-searchbar>
-  <div style="padding: 0 16px; display: flex; justify-content: center;">
-    <div style="width: 100%; max-width: 720px;">
-      <ion-grid fixed>
-        <ion-row>
-          <ion-col size="6" *ngFor="let label of filteredItems">
-            <ion-button expand="block">{{ label }}</ion-button>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+
+  <div class="instruction-wrapper">
+    <div class="instruction-grid">
+      <div
+        class="instruction-card"
+        *ngFor="let item of filteredItems"
+        (click)="openSteps(item)"
+        [class.card-active]="activeCardId === item.id"
+      >
+        <div class="photo-frame">
+          <img class="instruction-photo" [src]="item.image" [alt]="item.label" loading="lazy" />
+        </div>
+        <span class="instruction-text">{{ item.label }}</span>
+      </div>
     </div>
   </div>
+
+  <ion-modal [isOpen]="showSteps" (didDismiss)="closeSteps()" backdropDismiss="false">
+    <ng-template>
+      <div class="step-modal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button fill="clear" (click)="closeSteps()">Cerrar</ion-button>
+            </ion-buttons>
+            <ion-title>{{ selectedItem?.label }}</ion-title>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <div class="step-content" *ngIf="selectedItem as current">
+            <div class="step-counter">
+              Paso {{ currentStepIndex + 1 }} de {{ current.steps.length }}
+            </div>
+            <p class="step-text">{{ current.steps[currentStepIndex] }}</p>
+          </div>
+        </ion-content>
+        <ion-footer>
+          <ion-toolbar class="step-toolbar">
+            <ion-buttons slot="start">
+              <ion-button class="nav-button" fill="solid" [disabled]="currentStepIndex === 0" (click)="previousStep()">
+                <ion-icon name="chevron-back-circle"></ion-icon>
+                <span>Atrás</span>
+              </ion-button>
+            </ion-buttons>
+            <ion-buttons slot="primary">
+              <ion-button class="emergency-button" fill="solid" color="danger" (click)="callEmergency()">
+                <ion-icon name="call-outline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+            <ion-buttons slot="end">
+              <ng-container *ngIf="selectedItem">
+                <ion-button
+                  class="nav-button"
+                  fill="solid"
+                  *ngIf="currentStepIndex < selectedItem.steps.length - 1; else finishButton"
+                  (click)="nextStep()"
+                >
+                  <span>Siguiente</span>
+                  <ion-icon name="chevron-forward-circle"></ion-icon>
+                </ion-button>
+              </ng-container>
+              <ng-template #finishButton>
+                <ion-button class="nav-button" fill="solid" color="success" (click)="closeSteps()">
+                  <span>Finalizar</span>
+                  <ion-icon name="checkmark-circle"></ion-icon>
+                </ion-button>
+              </ng-template>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-footer>
+      </div>
+    </ng-template>
+  </ion-modal>
 </ion-content>

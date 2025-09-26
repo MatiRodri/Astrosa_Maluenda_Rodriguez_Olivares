@@ -1,51 +1,119 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 type PermissionResult = { granted: boolean };
 
+type WidgetState = {
+  enabled: boolean;
+  granted: boolean;
+};
+
 interface OverlayWidgetPlugin {
-  enable(): Promise<void>;
-  disable(): Promise<void>;
-  hasPermission(): Promise<PermissionResult>;
-  requestPermission(): Promise<PermissionResult>;
+  enable(options?: Record<string, unknown>): Promise<void>;
+  disable(options?: Record<string, unknown>): Promise<void>;
+  getState(options?: Record<string, unknown>): Promise<WidgetState>;
+  hasPermission(options?: Record<string, unknown>): Promise<PermissionResult>;
+  requestPermission(options?: Record<string, unknown>): Promise<PermissionResult>;
 }
 
-// Bridge for a future native plugin named "OverlayWidget" (Android only)
 const OverlayWidget = registerPlugin<OverlayWidgetPlugin>('OverlayWidget');
 
 @Injectable({ providedIn: 'root' })
 export class OverlayWidgetService {
+  private readonly storageKey = 'widgetEnabled';
+
   private isAndroidNative(): boolean {
     return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   }
 
+  async getStoredState(): Promise<boolean> {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored !== null) {
+        return stored === 'true';
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (!this.isAndroidNative()) {
+      return false;
+    }
+
+    const state = await this.safeGetState();
+    const enabled = !!state?.enabled && !!state?.granted;
+    await this.persistState(enabled);
+    return enabled;
+  }
+
   async enableWidget(): Promise<boolean> {
     if (!this.isAndroidNative()) {
-      console.warn('[OverlayWidget] Not running on Android native. Skipping.');
-      return false;
-    }
-    try {
-      const perm = await this.safeHasPermission();
-      if (!perm?.granted) {
-        const req = await this.safeRequestPermission();
-        if (!req?.granted) return false;
-      }
-      await OverlayWidget.enable();
+      await this.persistState(true);
       return true;
-    } catch (err) {
-      console.warn('[OverlayWidget] enable failed:', err);
+    }
+
+    const hasPermission = await this.safeHasPermission();
+    if (!hasPermission?.granted) {
+      const requested = await this.safeRequestPermission();
+      if (!requested?.granted) {
+        await this.persistState(false);
+        return false;
+      }
+    }
+
+    try {
+      await OverlayWidget.enable();
+    } catch {
+      await this.persistState(false);
       return false;
     }
+
+    const state = await this.safeGetState();
+    const enabled = !!state?.enabled && !!state?.granted;
+    await this.persistState(enabled);
+
+    if (!enabled) {
+      try { await OverlayWidget.disable(); } catch { /* ignore */ }
+    }
+
+    return enabled;
   }
 
   async disableWidget(): Promise<boolean> {
-    if (!this.isAndroidNative()) return false;
+    if (!this.isAndroidNative()) {
+      await this.persistState(false);
+      return true;
+    }
+
     try {
       await OverlayWidget.disable();
-      return true;
-    } catch (err) {
-      console.warn('[OverlayWidget] disable failed:', err);
-      return false;
+    } catch {
+      // ignore, we'll verify state below
+    }
+
+    const state = await this.safeGetState();
+    const disabled = !state?.enabled;
+    await this.persistState(false);
+    return disabled;
+  }
+
+  private async persistState(enabled: boolean): Promise<void> {
+    try {
+      localStorage.setItem(this.storageKey, enabled ? 'true' : 'false');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private async safeGetState(): Promise<WidgetState | null> {
+    if (!this.isAndroidNative()) {
+      return null;
+    }
+
+    try {
+      return await OverlayWidget.getState();
+    } catch {
+      return null;
     }
   }
 

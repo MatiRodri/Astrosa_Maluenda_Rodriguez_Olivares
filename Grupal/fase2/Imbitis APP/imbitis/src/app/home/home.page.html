@@ -1,19 +1,20 @@
-<ion-content [fullscreen]="true">
-  <ion-fab vertical="top" horizontal="end" slot="fixed">
+﻿<ion-content class="home-page" [fullscreen]="true">
+  <ion-fab class="settings-fab" vertical="top" horizontal="end" slot="fixed">
     <ion-fab-button routerLink="/settings">
-      <ion-img src="assets/setting.png" alt="Settings" style="width: 32px; height: 32px;"></ion-img>
+      <ion-img src="assets/setting.png" alt="Settings" class="settings-icon"></ion-img>
     </ion-fab-button>
   </ion-fab>
 
-  <div style="padding: 16px; display: flex; justify-content: center;">
-    <ion-img src="assets/logo.jpg" alt="Imbitis logo" style="max-width: 240px;"></ion-img>
-  </div>
-  <div style="padding: 16px; text-align: center;">
-    <h2>Bienvenido a Imbitis</h2>
-  </div>
+  <div class="home-content">
+    <div class="logo-container">
+      <ion-img src="assets/logo.jpg" alt="Imbitis logo" class="logo"></ion-img>
+    </div>
 
-  <div style="padding: 0 16px; display: flex; justify-content: center;">
-    <div style="width: 100%; max-width: 280px;">
+    <div class="welcome">
+      <h2>Bienvenido a Imbitis</h2>
+    </div>
+
+    <div class="actions">
       <ion-grid fixed>
         <ion-row>
           <ion-col size="12">

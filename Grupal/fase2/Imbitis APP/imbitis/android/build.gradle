@@ -6,7 +6,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'com.android.tools.build:gradle:8.7.2'
+    classpath 'com.android.tools.build:gradle:8.13.0'
     classpath 'com.google.gms:google-services:4.4.2'
     // NOTE: Do not place your application dependencies here; they belong
     // in the individual module build.gradle files
@@ -26,16 +26,16 @@ task clean(type: Delete) {
   delete rootProject.buildDir
 }
 
-// 🔧 Forzar compatibilidad Java/Kotlin 17 en todos los subproyectos
+// Forzar compatibilidad Java/Kotlin 21 en todos los subproyectos
 subprojects {
   tasks.withType(JavaCompile).configureEach {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     options.encoding = 'UTF-8'
   }
   plugins.withId('org.jetbrains.kotlin.android') {
     tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-      kotlinOptions { jvmTarget = '17' }
+      kotlinOptions { jvmTarget = '21' }
     }
   }
 }
