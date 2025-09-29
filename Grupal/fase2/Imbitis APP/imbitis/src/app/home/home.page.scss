@@ -1,4 +1,4 @@
-﻿:host {
+:host {
   ion-content.home-page {
     --background: var(--ion-background-color, #ffffff);
   }
@@ -47,6 +47,11 @@
 
 .actions ion-button {
   --border-radius: 12px;
+}
+
+.connection-status {
+  width: 100%;
+  max-width: 320px;
 }
 
 @media (max-height: 600px) {

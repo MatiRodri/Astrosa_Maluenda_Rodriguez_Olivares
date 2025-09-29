@@ -14,23 +14,62 @@
     </ion-toolbar>
   </ion-header>
 
-  <ion-searchbar placeholder="Buscar" (ionInput)="onSearchChange($event)" debounce="150"></ion-searchbar>
+  <ion-searchbar
+    placeholder="Buscar"
+    debounce="150"
+    (ionInput)="onSearchChange($event)"
+    [disabled]="isLoading || !!loadError"
+  ></ion-searchbar>
 
-  <div class="instruction-wrapper">
-    <div class="instruction-grid">
-      <div
-        class="instruction-card"
-        *ngFor="let item of filteredItems"
-        (click)="openSteps(item)"
-        [class.card-active]="activeCardId === item.id"
-      >
-        <div class="photo-frame">
-          <img class="instruction-photo" [src]="item.image" [alt]="item.label" loading="lazy" />
-        </div>
-        <span class="instruction-text">{{ item.label }}</span>
-      </div>
+  <ng-container *ngIf="isLoading; else contentState">
+    <div class="state-wrapper">
+      <ion-spinner name="crescent"></ion-spinner>
+      <p>Cargando instrucciones...</p>
     </div>
-  </div>
+  </ng-container>
+
+  <ng-template #contentState>
+    <ng-container *ngIf="!loadError; else errorState">
+      <ng-container *ngIf="filteredCategories.length; else emptyState">
+        <div class="instruction-wrapper">
+          <div class="instruction-grid">
+            <div
+              class="instruction-card"
+              *ngFor="let item of filteredCategories; trackBy: trackCategory"
+              (click)="openSteps(item)"
+              [class.card-active]="activeCardId === item.id"
+            >
+              <div class="photo-frame" *ngIf="item.iconUrl; else placeholderIcon">
+                <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
+              </div>
+              <ng-template #placeholderIcon>
+                <div class="photo-placeholder">
+                  <ion-icon name="medical-outline"></ion-icon>
+                </div>
+              </ng-template>
+              <span class="instruction-text">{{ item.name | uppercase }}</span>
+              <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
+  </ng-template>
+
+  <ng-template #errorState>
+    <div class="state-wrapper state-error">
+      <ion-icon name="warning-outline"></ion-icon>
+      <p>{{ loadError }}</p>
+      <ion-button fill="outline" size="small" (click)="loadCategories()">Reintentar</ion-button>
+    </div>
+  </ng-template>
+
+  <ng-template #emptyState>
+    <div class="state-wrapper">
+      <ion-icon name="clipboard-outline"></ion-icon>
+      <p>No hay instrucciones disponibles por el momento.</p>
+    </div>
+  </ng-template>
 
   <ion-modal [isOpen]="showSteps" (didDismiss)="closeSteps()" backdropDismiss="false">
     <ng-template>
@@ -40,23 +79,42 @@
             <ion-buttons slot="start">
               <ion-button fill="clear" (click)="closeSteps()">Cerrar</ion-button>
             </ion-buttons>
-            <ion-title>{{ selectedItem?.label }}</ion-title>
+            <ion-title>{{ selectedCategory?.name }}</ion-title>
           </ion-toolbar>
         </ion-header>
         <ion-content>
-          <div class="step-content" *ngIf="selectedItem as current">
-            <div class="step-counter">
-              Paso {{ currentStepIndex + 1 }} de {{ current.steps.length }}
+          <ng-container *ngIf="currentStep as step">
+            <div class="step-content">
+              <div class="step-counter">
+                Paso {{ currentStepIndex + 1 }} de {{ selectedCategory?.steps?.length || 0 }}
+              </div>
+
+              <div class="step-media" *ngIf="step.imageUrl">
+                <img [src]="step.imageUrl" [alt]="'Paso ' + step.order" loading="lazy" />
+              </div>
+
+              <p class="step-text">{{ step.text }}</p>
+
+              <div class="step-audio" *ngIf="step.audioUrl">
+                <ion-button expand="block" fill="outline" (click)="toggleAudioPlayback()">
+                  <ion-spinner slot="start" *ngIf="isAudioLoading" name="dots"></ion-spinner>
+                  <ion-icon
+                    *ngIf="!isAudioLoading"
+                    slot="start"
+                    [name]="isAudioPlaying ? 'pause-circle' : 'volume-high'"
+                  ></ion-icon>
+                  <span>{{ isAudioPlaying ? 'Detener audio' : 'Reproducir audio' }}</span>
+                </ion-button>
+              </div>
             </div>
-            <p class="step-text">{{ current.steps[currentStepIndex] }}</p>
-          </div>
+          </ng-container>
         </ion-content>
         <ion-footer>
           <ion-toolbar class="step-toolbar">
             <ion-buttons slot="start">
               <ion-button class="nav-button" fill="solid" [disabled]="currentStepIndex === 0" (click)="previousStep()">
                 <ion-icon name="chevron-back-circle"></ion-icon>
-                <span>Atr√°s</span>
+                <span>Atr·s</span>
               </ion-button>
             </ion-buttons>
             <ion-buttons slot="primary">
@@ -65,11 +123,11 @@
               </ion-button>
             </ion-buttons>
             <ion-buttons slot="end">
-              <ng-container *ngIf="selectedItem">
+              <ng-container *ngIf="selectedCategory as current">
                 <ion-button
                   class="nav-button"
                   fill="solid"
-                  *ngIf="currentStepIndex < selectedItem.steps.length - 1; else finishButton"
+                  *ngIf="currentStepIndex < current.steps.length - 1; else finishButton"
                   (click)="nextStep()"
                 >
                   <span>Siguiente</span>

@@ -1,4 +1,4 @@
-﻿<ion-content class="home-page" [fullscreen]="true">
+<ion-content class="home-page" [fullscreen]="true">
   <ion-fab class="settings-fab" vertical="top" horizontal="end" slot="fixed">
     <ion-fab-button routerLink="/settings">
       <ion-img src="assets/setting.png" alt="Settings" class="settings-icon"></ion-img>
@@ -31,6 +31,17 @@
           </ion-col>
         </ion-row>
       </ion-grid>
+    </div>
+
+    <div class="connection-status" *ngIf="connectionOk !== null">
+      <ion-card [color]="connectionOk ? 'success' : 'warning'">
+        <ion-card-header>
+          <ion-card-title>Estado Supabase</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          {{ connectionMessage }}
+        </ion-card-content>
+      </ion-card>
     </div>
   </div>
 </ion-content>
