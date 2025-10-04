@@ -36,7 +36,7 @@
             <div
               class="instruction-card"
               *ngFor="let item of filteredCategories; trackBy: trackCategory"
-              (click)="openSteps(item)"
+              (click)="handleCategoryClick(item)"
               [class.card-active]="activeCardId === item.id"
             >
               <div class="photo-frame" *ngIf="item.iconUrl; else placeholderIcon">
@@ -71,6 +71,48 @@
     </div>
   </ng-template>
 
+  <ion-modal [isOpen]="subCategoryModalOpen" (didDismiss)="closeSubcategoryModal()" backdropDismiss="true">
+    <ng-template>
+      <div class="subcategory-modal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-buttons slot="start">
+              <ion-button fill="clear" *ngIf="subCategoryPath.length > 1" (click)="goBackSubcategoryLevel()">
+                <ion-icon slot="start" name="chevron-back"></ion-icon>
+                Atras
+              </ion-button>
+            </ion-buttons>
+            <ion-title>{{ currentSubcategoryParent?.name }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button fill="clear" (click)="closeSubcategoryModal()">Cerrar</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <div class="instruction-wrapper">
+            <div class="instruction-grid">
+              <div
+                class="instruction-card"
+                *ngFor="let item of visibleSubcategories; trackBy: trackCategory"
+                (click)="handleSubcategoryClick(item)"
+              >
+                <div class="photo-frame" *ngIf="item.iconUrl; else subPlaceholderIcon">
+                  <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
+                </div>
+                <ng-template #subPlaceholderIcon>
+                  <div class="photo-placeholder">
+                    <ion-icon name="medical-outline"></ion-icon>
+                  </div>
+                </ng-template>
+                <span class="instruction-text">{{ item.name | uppercase }}</span>
+                <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+              </div>
+            </div>
+          </div>
+        </ion-content>
+      </div>
+    </ng-template>
+  </ion-modal>
   <ion-modal [isOpen]="showSteps" (didDismiss)="closeSteps()" backdropDismiss="false">
     <ng-template>
       <div class="step-modal">
@@ -96,15 +138,24 @@
               <p class="step-text">{{ step.text }}</p>
 
               <div class="step-audio" *ngIf="step.audioUrl">
-                <ion-button expand="block" fill="outline" (click)="toggleAudioPlayback()">
+                <ion-button
+                  class="audio-button"
+                  color="primary"
+                  shape="round"
+                  (click)="toggleAudioPlayback()"
+                  [disabled]="isAudioLoading"
+                >
                   <ion-spinner slot="start" *ngIf="isAudioLoading" name="dots"></ion-spinner>
                   <ion-icon
                     *ngIf="!isAudioLoading"
                     slot="start"
-                    [name]="isAudioPlaying ? 'pause-circle' : 'volume-high'"
+                    [name]="isAudioPlaying ? 'pause-circle' : 'play-circle'"
                   ></ion-icon>
-                  <span>{{ isAudioPlaying ? 'Detener audio' : 'Reproducir audio' }}</span>
+                  {{ isAudioPlaying ? 'Detener audio' : 'Reproducir audio' }}
                 </ion-button>
+                <ion-note *ngIf="autoPlayEnabled" class="auto-play-note">
+                  Reproduccion automatica activa
+                </ion-note>
               </div>
             </div>
           </ng-container>
@@ -114,7 +165,7 @@
             <ion-buttons slot="start">
               <ion-button class="nav-button" fill="solid" [disabled]="currentStepIndex === 0" (click)="previousStep()">
                 <ion-icon name="chevron-back-circle"></ion-icon>
-                <span>Atrás</span>
+                <span>Atras</span>
               </ion-button>
             </ion-buttons>
             <ion-buttons slot="primary">
@@ -135,9 +186,9 @@
                 </ion-button>
               </ng-container>
               <ng-template #finishButton>
-                <ion-button class="nav-button" fill="solid" color="success" (click)="closeSteps()">
-                  <span>Finalizar</span>
-                  <ion-icon name="checkmark-circle"></ion-icon>
+                <ion-button class="nav-button" fill="solid" color="success" (click)="openFeedback()">
+                  <span>Dar feedback</span>
+                  <ion-icon name="chatbubbles"></ion-icon>
                 </ion-button>
               </ng-template>
             </ion-buttons>
@@ -146,4 +197,73 @@
       </div>
     </ng-template>
   </ion-modal>
+
+  <ion-modal [isOpen]="feedbackModalOpen" (didDismiss)="closeFeedback()" backdropDismiss="true">
+    <ng-template>
+      <div class="feedback-modal">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Tu opinion</ion-title>
+            <ion-buttons slot="end">
+              <ion-button fill="clear" (click)="closeFeedback()">Cerrar</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <div class="feedback-content">
+            <h2>Que te parecio {{ completedCategoryName || 'la instruccion' }}?</h2>
+            <p>Selecciona una opcion o deja un comentario. Todo es opcional.</p>
+
+            <div class="feedback-actions">
+              <ion-button
+                [fill]="feedbackChoice === 'like' ? 'solid' : 'outline'"
+                color="success"
+                (click)="selectFeedback('like')"
+              >
+                <ion-icon slot="start" name="thumbs-up"></ion-icon>
+                Me gusto
+              </ion-button>
+              <ion-button
+                [fill]="feedbackChoice === 'dislike' ? 'solid' : 'outline'"
+                color="medium"
+                (click)="selectFeedback('dislike')"
+              >
+                <ion-icon slot="start" name="thumbs-down"></ion-icon>
+                No me gusto
+              </ion-button>
+            </div>
+
+            <ion-textarea
+              label="Comentarios (opcional)"
+              labelPlacement="stacked"
+              placeholder="Escribe tus comentarios"
+              autoGrow="true"
+              [(ngModel)]="feedbackComment"
+            
+            ></ion-textarea>
+
+            <ion-note *ngIf="feedbackSuccess" class="feedback-success">
+              Gracias por tu feedback.
+            </ion-note>
+            <ion-note *ngIf="feedbackError" color="danger" class="feedback-error">{{ feedbackError }}</ion-note>
+          </div>
+        </ion-content>
+        <ion-footer>
+          <ion-toolbar class="feedback-toolbar">
+            <ion-buttons slot="start">
+              <ion-button fill="clear" (click)="closeFeedback()">Omitir</ion-button>
+            </ion-buttons>
+            <ion-buttons slot="end">
+              <ion-button color="primary" (click)="submitFeedback()" [disabled]="feedbackSending">
+                <ion-spinner slot="start" *ngIf="feedbackSending" name="dots"></ion-spinner>
+                Enviar
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-footer>
+      </div>
+    </ng-template>
+  </ion-modal>
 </ion-content>
+
+

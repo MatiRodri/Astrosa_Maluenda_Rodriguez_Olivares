@@ -1,4 +1,4 @@
-﻿<ion-header [translucent]="true">
+<ion-header [translucent]="true">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button text="Volver" defaultHref="/home"></ion-back-button>
@@ -12,6 +12,10 @@
     <ion-item>
       <ion-label>Habilitar widget de la aplicacion</ion-label>
       <ion-toggle slot="end" [checked]="widgetEnabled" (ionChange)="onWidgetToggle($event)"></ion-toggle>
+    </ion-item>
+    <ion-item>
+      <ion-label>Reproduccion automatica de audio</ion-label>
+      <ion-toggle slot="end" [checked]="autoPlayEnabled" (ionChange)="onAutoPlayToggle($event)"></ion-toggle>
     </ion-item>
   </ion-list>
 </ion-content>
