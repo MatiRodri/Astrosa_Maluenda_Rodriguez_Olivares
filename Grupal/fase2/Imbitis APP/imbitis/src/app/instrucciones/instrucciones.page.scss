@@ -246,34 +246,45 @@ body.dark .nav-button {
 }
 
 .feedback-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 160px));
   justify-content: center;
   gap: 12px;
 }
 
 .feedback-actions ion-button {
-  flex: 1 1 140px;
-  max-width: 220px;
-  min-width: 120px;
-  --border-radius: 999px;
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --background: var(--ion-color-primary, #3880ff);
-  --background-activated: var(--ion-color-primary-shade, #3171e0);
-  --color: var(--ion-color-primary-contrast, #ffffff);
+  width: 100%;
+  --border-radius: 18px;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --padding-top: 10px;
+  --padding-bottom: 10px;
+  --box-shadow: none;
 }
 
 .feedback-actions ion-button[fill='outline'] {
   --background: transparent;
-  --border-color: var(--ion-color-light, #f4f5f8);
   --border-width: 2px;
-  --color: var(--ion-color-light-contrast, #1e1e1e);
 }
 
-body.dark .feedback-actions ion-button[fill='outline'] {
-  --border-color: rgba(255, 255, 255, 0.6);
-  --color: #ffffff;
+.feedback-actions ion-button[color='success'][fill='outline'] {
+  --border-color: rgba(45, 211, 111, 0.4);
+  --color: var(--ion-color-success, #2dd36f);
+}
+
+.feedback-actions ion-button[color='danger'][fill='outline'] {
+  --border-color: rgba(235, 68, 90, 0.45);
+  --color: var(--ion-color-danger, #eb445a);
+}
+
+body.dark .feedback-actions ion-button[color='success'][fill='outline'] {
+  --border-color: rgba(45, 211, 111, 0.7);
+  --color: var(--ion-color-success, #2dd36f);
+}
+
+body.dark .feedback-actions ion-button[color='danger'][fill='outline'] {
+  --border-color: rgba(235, 68, 90, 0.7);
+  --color: var(--ion-color-danger, #eb445a);
 }
 
 .feedback-toolbar {
@@ -345,7 +356,8 @@ body.dark .feedback-actions ion-button[fill='outline'] {
   }
 
   .feedback-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
   }
 
   .feedback-toolbar ion-buttons {
