@@ -351,7 +351,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     try {
       await this.feedbackService.submitFeedback({
         categoryId,
-        rating: this.feedbackChoice === null ? null : this.feedbackChoice === 'like' ? 1 : -1,
+        rating: this.feedbackChoice === null ? null : this.feedbackChoice === 'like' ? 1 : 0,
         comment: this.feedbackComment,
       });
       this.feedbackSuccess = true;
