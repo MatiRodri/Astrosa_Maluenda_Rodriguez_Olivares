@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Proceso de Negocio - Imbitis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0 auto;
+            max-width: 900px;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        .header img {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        h1 {
+            font-size: 2em;
+            margin: 0;
+        }
+        h2 {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-top: 40px;
+        }
+        .process-section {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .process-section h3 {
+            margin-top: 0;
+            color: #d9534f; /* Rojo para el problema */
+        }
+        .process-section.to-be h3 {
+            color: #5cb85c; /* Verde para la solución */
+        }
+        ol {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        strong {
+            font-weight: 600;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="https://i.imgur.com/gYj8G3r.png" alt="Logo Imbitis">
+        <h1>Análisis de Proceso de Negocio: Primeros Auxilios</h1>
+        <p><strong>Proyecto:</strong> Imbitis</p>
+    </div>
+
+    <h2>Resumen Ejecutivo</h2>
+    <p>Este documento describe el proceso actual (AS-IS) que enfrenta una persona sin conocimientos técnicos al presenciar una emergencia médica y lo compara con el proceso futuro (TO-BE) utilizando la aplicación móvil <strong>Imbitis</strong>. El objetivo es demostrar cómo Imbitis optimiza la respuesta, reduce la incertidumbre y mejora las probabilidades de supervivencia de la víctima.</p>
+
+    <div class="process-section as-is">
+        <h3>Proceso AS-IS (Estado Actual sin Imbitis)</h3>
+        <p>Describe la secuencia de eventos y las problemáticas que enfrenta un testigo de una emergencia sin una herramienta de apoyo.</p>
+        <ol>
+            <li><strong>Incidente:</strong> Ocurre una emergencia médica inesperada.</li>
+            [cite_start]<li><strong>Reacción Inicial:</strong> El testigo experimenta pánico, falta de confianza o miedo a causar más daño[cite: 7]. [cite_start]La mayoría de las personas no tienen la capacitación para actuar de manera efectiva[cite: 6].</li>
+            [cite_start]<li><strong>Inacción o Duda:</strong> Debido a la falta de conocimiento, el testigo a menudo cae en la inacción, perdiendo segundos y minutos que son cruciales para la víctima[cite: 7].</li>
+            <li><strong>Búsqueda de Información (Opcional):</strong> El testigo puede intentar buscar en internet cómo actuar. [cite_start]Sin embargo, la información encontrada no está diseñada para ser accedida y comprendida rápidamente bajo estrés[cite: 8].</li>
+            <li><strong>Llamada de Emergencia:</strong> El testigo debe buscar el número de emergencia local (131) en su teléfono y realizar la llamada, lo cual consume tiempo adicional.</li>
+            [cite_start]<li><strong>Espera Pasiva:</strong> Una vez realizada la llamada, el testigo espera la llegada de los servicios de emergencia, sintiéndose a menudo un espectador incapaz de ayudar mientras la situación de la víctima puede empeorar[cite: 29].</li>
+            [cite_start]<li><strong>Resultado:</strong> El tiempo vital que se pierde podría marcar la diferencia entre la vida y la muerte de la persona afectada[cite: 7].</li>
+        </ol>
+    </div>
+
+    <div class="process-section to-be">
+        <h3>Proceso TO-BE (Estado Futuro con Imbitis)</h3>
+        <p>Describe el flujo de acciones optimizado que un usuario seguiría al utilizar la aplicación Imbitis durante una emergencia.</p>
+        <ol>
+            <li><strong>Incidente:</strong> Ocurre una emergencia médica inesperada.</li>
+            <li><strong>Acción Inmediata:</strong> El usuario abre la aplicación Imbitis, ya sea desde la pantalla de bloqueo o el menú principal.</li>
+            <li><strong>Decisión Guiada:</strong> La aplicación presenta dos opciones claras e inmediatas:
+                <ul>
+                    [cite_start]<li>Llamar directamente al servicio de ambulancias (131) con un botón prominente[cite: 16, 49].</li>
+                    <li>Acceder a las instrucciones de primeros auxilios.</li>
+                </ul>
+            </li>
+            [cite_start]<li><strong>Identificación del Escenario:</strong> El usuario navega por un menú intuitivo y selecciona la emergencia específica (ej: "Atragantamiento", "Choque", "Ataque epiléptico")[cite: 12, 50, 52].</li>
+            <li><strong>Recepción de Instrucciones Claras:</strong> La aplicación proporciona una guía paso a paso, utilizando:
+                <ul>
+                    [cite_start]<li>Una <strong>voz guía calmada y directa</strong> que explica qué hacer y qué no hacer[cite: 15].</li>
+                    [cite_start]<li><strong>Imágenes sencillas y claras</strong> que ilustran cada acción[cite: 14].</li>
+                </ul>
+            </li>
+            [cite_start]<li><strong>Interacción y Confirmación:</strong> El usuario avanza en el proceso solo después de confirmar que ha entendido y/o realizado el paso actual, ya sea presionando el botón "LISTO" [cite: 64] o diciéndolo en voz alta. El audio de la instrucción se repite si no hay confirmación para asegurar la comprensión.</li>
+            [cite_start]<li><strong>Asistencia Continua:</strong> Imbitis acompaña al usuario, transformándolo de un espectador asustado en un primer interviniente capaz [cite: 29][cite_start], sirviendo como un "puente" de conocimiento y calma hasta que llega la ayuda profesional[cite: 28].</li>
+            <li><strong>Resultado:</strong> Se maximiza el uso del tiempo crítico antes de la llegada de la ambulancia. [cite_start]Se crea una comunidad más preparada y resiliente [cite: 30][cite_start], poniendo en manos de cualquier persona la capacidad de salvar una vida[cite: 31].</li>
+        </ol>
+    </div>
+
+    <footer>
+        <p>Documento generado para el proyecto Capstone: Imbitis.</p>
+    </footer>
+
+</body>
+</html>
