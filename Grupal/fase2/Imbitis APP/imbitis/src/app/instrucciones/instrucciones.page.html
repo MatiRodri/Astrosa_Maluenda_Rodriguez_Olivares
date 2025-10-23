@@ -14,12 +14,14 @@
     </ion-toolbar>
   </ion-header>
 
-  <ion-searchbar
-    placeholder="Buscar"
-    debounce="150"
-    (ionInput)="onSearchChange($event)"
-    [disabled]="isLoading || !!loadError"
-  ></ion-searchbar>
+  <div class="instructions-search">
+    <ion-searchbar
+      placeholder="Buscar"
+      debounce="150"
+      (ionInput)="onSearchChange($event)"
+      [disabled]="isLoading || !!loadError"
+    ></ion-searchbar>
+  </div>
 
   <ng-container *ngIf="isLoading; else contentState">
     <div class="state-wrapper">
@@ -126,7 +128,7 @@
         </ion-header>
         <ion-content>
           <ng-container *ngIf="currentStep as step">
-            <div class="step-content">
+            <div class="step-content" #stepContent>
               <div class="step-counter">
                 Paso {{ currentStepIndex + 1 }} de {{ selectedCategory?.steps?.length || 0 }}
               </div>
@@ -153,6 +155,22 @@
                   ></ion-icon>
                   {{ isAudioPlaying ? 'Detener audio' : 'Reproducir audio' }}
                 </ion-button>
+                <div class="audio-speed">
+                  <span class="audio-speed-label">Velocidad</span>
+                  <ion-segment
+                    class="audio-speed-segment"
+                    mode="ios"
+                    [value]="audioPlaybackRate.toString()"
+                    (ionChange)="onPlaybackRateChange($event)"
+                  >
+                    <ion-segment-button
+                      *ngFor="let option of playbackRates"
+                      [value]="option.value.toString()"
+                    >
+                      <ion-label>{{ option.label }}</ion-label>
+                    </ion-segment-button>
+                  </ion-segment>
+                </div>
                 <ion-note *ngIf="autoPlayEnabled" class="auto-play-note">
                   Reproduccion automatica activa
                 </ion-note>

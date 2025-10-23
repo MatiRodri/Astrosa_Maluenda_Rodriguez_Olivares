@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-list inset>
+  <ion-list inset class="settings-card">
     <ion-item>
       <ion-label>Habilitar widget de la aplicacion</ion-label>
       <ion-toggle slot="end" [checked]="widgetEnabled" (ionChange)="onWidgetToggle($event)"></ion-toggle>
@@ -17,5 +17,23 @@
       <ion-label>Reproduccion automatica de audio</ion-label>
       <ion-toggle slot="end" [checked]="autoPlayEnabled" (ionChange)="onAutoPlayToggle($event)"></ion-toggle>
     </ion-item>
+    <ion-list-header>
+      <ion-label>
+        Esquema de colores
+        <p>Selecciona la paleta que mejor se adapta a tus necesidades visuales.</p>
+      </ion-label>
+    </ion-list-header>
+    <ion-radio-group [value]="selectedColorProfile" (ionChange)="onColorProfileChange($event)">
+      <ion-item *ngFor="let profile of colorProfiles">
+        <ion-radio slot="start" [value]="profile.id"></ion-radio>
+        <ion-label>
+          {{ profile.label }}
+          <p>{{ profile.description }}</p>
+          <div class="palette-preview" aria-hidden="true">
+            <span *ngFor="let color of profile.preview" class="swatch" [style.background]="color"></span>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-radio-group>
   </ion-list>
 </ion-content>

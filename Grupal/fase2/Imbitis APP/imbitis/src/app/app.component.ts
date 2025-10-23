@@ -1,6 +1,7 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { AlertController, ToastController } from '@ionic/angular';
 import { OverlayWidgetService } from './core/overlay-widget.service';
+import { UserPreferencesService } from './core/user-preferences.service';
 
 @Component({
   selector: 'app-root',
@@ -12,10 +13,13 @@ export class AppComponent implements OnInit {
   constructor(
     private alertController: AlertController,
     private toastController: ToastController,
-    private overlayWidget: OverlayWidgetService
+    private overlayWidget: OverlayWidgetService,
+    private preferences: UserPreferencesService
   ) {}
 
   async ngOnInit() {
+    // Asegura que las preferencias visuales se apliquen al iniciar la app.
+    this.preferences.applyStoredColorProfile();
     try {
       const asked = localStorage.getItem('hasAskedWidget');
       if (!asked) {

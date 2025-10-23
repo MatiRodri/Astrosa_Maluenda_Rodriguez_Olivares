@@ -1,7 +1,14 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule, AlertController, SearchbarCustomEvent } from '@ionic/angular';
+import {
+  IonicModule,
+  AlertController,
+  SearchbarCustomEvent,
+  SegmentCustomEvent,
+  createGesture,
+  Gesture,
+} from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { InstructionCategory, InstructionStep, InstructionsService } from './instructions.service';
 import { UserPreferencesService } from '../core/user-preferences.service';
@@ -35,6 +42,13 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   autoPlayEnabled = true;
   isAudioLoading = false;
   isAudioPlaying = false;
+  audioPlaybackRate = 1;
+  readonly playbackRates: Array<{ value: number; label: string }> = [
+    { value: 0.75, label: '0.75x' },
+    { value: 1, label: '1.0x' },
+    { value: 1.5, label: '1.5x' },
+    { value: 2, label: '2.0x' },
+  ];
 
   feedbackModalOpen = false;
   feedbackChoice: FeedbackChoice | null = null;
@@ -48,6 +62,18 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private audio: HTMLAudioElement | null = null;
   private autoReplayTimeout: ReturnType<typeof setTimeout> | null = null;
   private preferencesSubscription?: Subscription;
+  private stepSwipeGesture?: Gesture;
+  private stepContentElement?: HTMLElement | null;
+
+  @ViewChild('stepContent', { read: ElementRef })
+  set stepContentRef(el: ElementRef<HTMLElement> | undefined) {
+    this.stepContentElement = el?.nativeElement ?? null;
+    if (this.stepContentElement) {
+      this.initializeStepSwipeGesture();
+    } else {
+      this.destroyStepSwipeGesture();
+    }
+  }
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -71,6 +97,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.preferencesSubscription?.unsubscribe();
     this.stopAudioPlayback();
+    this.destroyStepSwipeGesture();
   }
 
   get currentStep(): InstructionStep | null {
@@ -194,6 +221,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.selectedCategory = null;
     this.currentStepIndex = 0;
     this.stopAudioPlayback();
+    this.stepContentElement = null;
+    this.destroyStepSwipeGesture();
   }
 
   nextStep(): void {
@@ -228,6 +257,17 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     await this.playStepAudio(step);
   }
 
+  onPlaybackRateChange(event: SegmentCustomEvent): void {
+    const value = Number(event.detail.value);
+    if (!value || value === this.audioPlaybackRate) {
+      return;
+    }
+    this.audioPlaybackRate = value;
+    if (this.audio) {
+      this.audio.playbackRate = value;
+    }
+  }
+
   private async playStepAudio(step: InstructionStep): Promise<void> {
     if (!step.audioUrl) {
       return;
@@ -238,6 +278,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
     const audio = new Audio(step.audioUrl);
     this.audio = audio;
+    audio.playbackRate = this.audioPlaybackRate;
 
     const scheduleReplay = () => {
       if (this.autoPlayEnabled && this.isCurrentStep(step)) {
@@ -290,6 +331,38 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.autoReplayTimeout = setTimeout(() => {
       void this.playStepAudio(step);
     }, delayMs);
+  }
+
+  private initializeStepSwipeGesture(): void {
+    if (!this.stepContentElement || !this.selectedCategory || this.selectedCategory.steps.length < 2) {
+      this.destroyStepSwipeGesture();
+      return;
+    }
+
+    this.destroyStepSwipeGesture();
+    this.stepSwipeGesture = createGesture({
+      el: this.stepContentElement,
+      gestureName: 'step-swipe',
+      direction: 'x',
+      threshold: 15,
+      onEnd: ev => {
+        const { deltaX, velocityX } = ev;
+        if (Math.abs(deltaX) < 60 && Math.abs(velocityX) < 0.3) {
+          return;
+        }
+        if (deltaX < 0) {
+          this.nextStep();
+        } else {
+          this.previousStep();
+        }
+      },
+    });
+    this.stepSwipeGesture.enable(true);
+  }
+
+  private destroyStepSwipeGesture(): void {
+    this.stepSwipeGesture?.destroy();
+    this.stepSwipeGesture = undefined;
   }
 
   private clearAutoReplayTimer(): void {

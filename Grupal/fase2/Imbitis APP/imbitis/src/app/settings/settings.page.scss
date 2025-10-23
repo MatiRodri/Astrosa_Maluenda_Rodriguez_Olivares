@@ -1,2 +1,55 @@
-/* Add settings-specific styles here if needed */
+ion-list-header p {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--ion-color-medium);
+}
 
+ion-item p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ion-color-medium);
+}
+
+.settings-card {
+  margin: 1rem 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--settings-card-background, var(--ion-color-light, #f8fafc));
+  box-shadow: 0 10px 24px rgba(var(--ion-text-color-rgb, 15, 23, 42), 0.08);
+  border: 1px solid rgba(var(--ion-text-color-rgb, 15, 23, 42), 0.06);
+}
+
+ion-list.settings-card ion-item {
+  --background: transparent;
+}
+
+ion-list.settings-card ion-item:not(:last-child) {
+  border-bottom: 1px solid rgba(var(--ion-text-color-rgb, 15, 23, 42), 0.06);
+}
+
+ion-list.settings-card ion-label {
+  color: var(--ion-text-color, #0f172a);
+}
+
+ion-list.settings-card ion-label p {
+  color: var(--ion-color-medium, #64748b);
+}
+
+ion-radio {
+  --color: var(--ion-color-medium, #64748b);
+  --color-checked: var(--ion-color-primary, #3b82f6);
+  --inner-border-radius: 999px;
+}
+
+.palette-preview {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.palette-preview .swatch {
+  width: 1.6rem;
+  height: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(var(--ion-color-medium-rgb, 100, 116, 139), 0.25);
+}
