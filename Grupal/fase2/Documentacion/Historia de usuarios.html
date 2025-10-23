@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historias de Usuario y Criterios de Aceptación - Imbitis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0 auto;
+            max-width: 950px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 15px;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            color: #0056b3;
+            margin: 0;
+        }
+        .header p {
+            font-size: 1.1em;
+            color: #6c757d;
+        }
+        .story-container {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .story-header {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 20px;
+        }
+        .story-header h2 {
+            margin: 0;
+            font-size: 1.4em;
+        }
+        .story-body {
+            padding: 20px;
+            font-style: italic;
+            background-color: #f1f3f5;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .story-body strong {
+            font-style: normal;
+        }
+        .criteria-header {
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #495057;
+        }
+        .criteria-list {
+            list-style: none;
+            padding: 0 20px 20px 20px;
+            margin: 0;
+        }
+        .criteria-list li {
+            border-left: 3px solid #17a2b8;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+        }
+        .criteria-list span {
+            font-weight: bold;
+            display: inline-block;
+            width: 70px;
+        }
+        .criteria-list .given { color: #28a745; }
+        .criteria-list .when { color: #fd7e14; }
+        .criteria-list .then { color: #007bff; }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Historias de Usuario y Criterios de Aceptación</h1>
+        <p>Proyecto Capstone: Imbitis</p>
+    </div>
+
+    <div class="story-container">
+        <div class="story-header">
+            <h2>HU-01: Selección de Emergencia</h2>
+        </div>
+        <div class="story-body">
+            <p><strong>Como un</strong> testigo de una emergencia, <strong>quiero</strong> poder encontrar y seleccionar rápidamente la guía correcta en un menú claro, <strong>para</strong> acceder a las instrucciones adecuadas sin perder tiempo vital.</p>
+        </div>
+        <div class="criteria-header">Criterios de Aceptación:</div>
+        <ul class="criteria-list">
+            <li><span class="given">Dado</span> que estoy en la pantalla de inicio, <span class="when">cuando</span> selecciono "Ver Instrucciones", <span class="then">entonces</span> se muestra una lista de emergencias con íconos y nombres claros.</li>
+            <li><span class="given">Dado</span> que estoy viendo la lista de emergencias, <span class="when">cuando</span> selecciono una categoría con sub-menú (ej. "Choque"), <span class="then">entonces</span> se me presenta una nueva lista con opciones específicas ("Choque en Auto", "Choque de Motocicleta").</li>
+            <li><span class="given">Dado</span> que he seleccionado una emergencia final (ej. "Ataque de Epilepsia"), <span class="when">cuando</span> la presiono, <span class="then">entonces</span> la aplicación me dirige a la pantalla del primer paso de esa guía.</li>
+        </ul>
+    </div>
+
+    <div class="story-container">
+        <div class="story-header">
+            <h2>HU-02: Avance Guiado por Pasos (Táctil y Voz)</h2>
+        </div>
+        <div class="story-body">
+            <p><strong>Como un</strong> usuario que está prestando primeros auxilios, <strong>quiero</strong> avanzar entre los pasos de forma clara y sencilla, usando el tacto o la voz, <strong>para</strong> poder seguir las instrucciones sin soltar a la víctima ni apartar la vista.</p>
+        </div>
+        <div class="criteria-header">Criterios de Aceptación:</div>
+        <ul class="criteria-list">
+            <li><span class="given">Dado</span> que estoy viendo un paso de la guía, <span class="when">cuando</span> presiono el botón "LISTO", <span class="then">entonces</span> la aplicación avanza a la pantalla del siguiente paso.</li>
+            <li><span class="given">Dado</span> que estoy viendo un paso y la función de voz está activa, <span class="when">cuando</span> digo claramente "listo", <span class="then">entonces</span> la aplicación avanza a la pantalla del siguiente paso.</li>
+            <li><span class="given">Dado</span> que estoy viendo un paso, <span class="when">cuando</span> no realizo ninguna acción por 4 segundos, <span class="then">entonces</span> la instrucción de audio para ese paso se reproduce de nuevo.</li>
+        </ul>
+    </div>
+    
+    <div class="story-container">
+        <div class="story-header">
+            <h2>HU-03: Llamada de Emergencia Rápida</h2>
+        </div>
+        <div class="story-body">
+            <p><strong>Como un</strong> usuario en una situación de alto estrés, <strong>quiero</strong> un botón de emergencia visible y accesible en todo momento, <strong>para</strong> poder contactar a los servicios de ambulancia (131) de forma inmediata.</p>
+        </div>
+        <div class="criteria-header">Criterios de Aceptación:</div>
+        <ul class="criteria-list">
+            <li><span class="given">Dado</span> que estoy en la pantalla de bloqueo o en la pantalla de inicio de la app, <span class="when">cuando</span> presiono el botón "LLAMAR" o de emergencia, <span class="then">entonces</span> la aplicación de teléfono del dispositivo se abre con el número de ambulancia (131) pre-marcado.</li>
+            <li><span class="given">Dado</span> que estoy siguiendo los pasos de una guía, <span class="when">cuando</span> necesito llamar a emergencias, <span class="then">entonces</span> un acceso directo para llamar sigue estando visible o fácilmente accesible en la interfaz.</li>
+        </ul>
+    </div>
+
+    <div class="story-container">
+        <div class="story-header">
+            <h2>HU-04: Enviar Feedback para Mejora</h2>
+        </div>
+        <div class="story-body">
+            <p><strong>Como un</strong> usuario que ha usado la aplicación, <strong>quiero</strong> tener una forma sencilla de enviar comentarios o calificar las guías, <strong>para</strong> ayudar a que las instrucciones sean cada vez más claras y efectivas.</p>
+        </div>
+        <div class="criteria-header">Criterios de Aceptación:</div>
+        <ul class="criteria-list">
+            <li><span class="given">Dado</span> que navego a la sección de "Feedback" de la app, <span class="when">cuando</span> abro la sección, <span class="then">entonces</span> se muestra un formulario para seleccionar una emergencia, dar una calificación por estrellas y escribir un comentario.</li>
+            <li><span class="given">Dado</span> que he completado el formulario de feedback con una calificación y un comentario, <span class="when">cuando</span> presiono el botón "Enviar", <span class="then">entonces</span> los datos se guardan en la base de datos y recibo un mensaje de confirmación ("¡Gracias por tu ayuda!").</li>
+        </ul>
+    </div>
+
+    <footer>
+        <p>Fin del Documento de Historias de Usuario.</p>
+    </footer>
+
+</body>
+</html>
