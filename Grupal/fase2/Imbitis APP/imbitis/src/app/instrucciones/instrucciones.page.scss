@@ -3,6 +3,12 @@
   margin-bottom: 24px;
 }
 
+ion-toolbar ion-buttons[slot='end'] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .instructions-search ion-searchbar {
   --background: var(--searchbar-background, var(--ion-color-light, #f3f4f6));
   --color: var(--searchbar-text-color, var(--ion-text-color, #0f172a));
@@ -191,6 +197,31 @@ body[color-theme='dark'] .instructions-search ion-searchbar::part(clear-button) 
   opacity: 0.9;
 }
 
+.instruction-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tag-pill {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  line-height: 1.1;
+  backdrop-filter: blur(4px);
+}
+
+body[color-theme='dark'] .tag-pill {
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .state-wrapper {
   padding: 48px 24px;
   display: flex;
@@ -376,6 +407,23 @@ body.dark .nav-button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
+}
+
+.settings-button {
+  --background: transparent;
+  --background-activated: rgba(var(--ion-color-primary-rgb, 56, 128, 255), 0.12);
+  --color: var(--ion-text-color, #0f172a);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+body[color-theme='dark'] .settings-button {
+  --color: var(--ion-color-primary-contrast, #ffffff);
+  --background-activated: rgba(var(--ion-color-primary-contrast-rgb, 255, 255, 255), 0.12);
 }
 
 .feedback-modal {

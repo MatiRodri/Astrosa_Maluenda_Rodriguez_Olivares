@@ -4,6 +4,25 @@
       <ion-back-button text="Volver" defaultHref="/home"></ion-back-button>
     </ion-buttons>
     <ion-title>Instrucciones</ion-title>
+    <ion-buttons slot="end">
+      <ion-button
+        class="emergency-button"
+        fill="solid"
+        color="danger"
+        (click)="callEmergency()"
+        aria-label="Llamar a emergencia"
+      >
+        <ion-icon name="call-outline"></ion-icon>
+      </ion-button>
+      <ion-button
+        class="settings-button"
+        fill="clear"
+        (click)="openSettings()"
+        aria-label="Abrir ajustes"
+      >
+        <ion-icon slot="icon-only" name="settings-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -51,6 +70,9 @@
               </ng-template>
               <span class="instruction-text">{{ item.name | uppercase }}</span>
               <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+              <div class="instruction-tags" *ngIf="item.tags?.length">
+                <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -108,6 +130,9 @@
                 </ng-template>
                 <span class="instruction-text">{{ item.name | uppercase }}</span>
                 <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+                <div class="instruction-tags" *ngIf="item.tags?.length">
+                  <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+                </div>
               </div>
             </div>
           </div>

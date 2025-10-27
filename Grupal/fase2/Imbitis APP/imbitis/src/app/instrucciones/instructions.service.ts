@@ -14,6 +14,7 @@ export interface InstructionCategory {
   name: string;
   description: string;
   iconUrl?: string;
+  tags: string[];
   steps: InstructionStep[];
   children: InstructionCategory[];
 }
@@ -24,6 +25,7 @@ interface CategoryRow {
   Description: string | null;
   IconURL: string | null;
   ParentCategoryID: number | null;
+  Tags?: string[] | string | null;
 }
 
 interface StepRow {
@@ -40,6 +42,7 @@ interface CategoryBuilder {
   name: string;
   description: string;
   iconUrl?: string;
+  tags: string[];
   parentId: number | null;
   steps: InstructionStep[];
   children: CategoryBuilder[];
@@ -48,6 +51,44 @@ interface CategoryBuilder {
 @Injectable({ providedIn: 'root' })
 export class InstructionsService {
   constructor(private readonly supabase: SupabaseService) {}
+
+  private normalizeTags(value: unknown): string[] {
+    if (!value) {
+      return [];
+    }
+
+    const unique = new Set<string>();
+    const pushTag = (tag: string) => {
+      const cleaned = tag.trim();
+      if (cleaned) {
+        unique.add(cleaned);
+      }
+    };
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string') {
+          pushTag(item);
+        }
+      }
+      return Array.from(unique);
+    }
+
+    if (typeof value === 'string') {
+      const parts = value
+        .split(/[,;|\r?\n]/)
+        .map(part => part.trim())
+        .filter(Boolean);
+      if (!parts.length) {
+        pushTag(value);
+      } else {
+        parts.forEach(pushTag);
+      }
+      return Array.from(unique);
+    }
+
+    return [];
+  }
 
   async fetchInstructions(): Promise<InstructionCategory[]> {
     const client = this.supabase.getClient();
@@ -68,11 +109,13 @@ export class InstructionsService {
 
     const builders = new Map<number, CategoryBuilder>();
     for (const row of categoryRows) {
+      const rawTags = (row as any).Tags ?? (row as any).tags ?? null;
       builders.set(row.CategoryID, {
         id: row.CategoryID,
         name: row.CategoryName?.trim() || 'Sin titulo',
         description: row.Description?.trim() || '',
         iconUrl: row.IconURL ?? undefined,
+        tags: this.normalizeTags(rawTags),
         parentId: row.ParentCategoryID,
         steps: [],
         children: [],
@@ -141,6 +184,7 @@ export class InstructionsService {
         name: builder.name,
         description: builder.description,
         iconUrl: builder.iconUrl,
+        tags: [...builder.tags],
         steps: [...builder.steps],
         children,
       };

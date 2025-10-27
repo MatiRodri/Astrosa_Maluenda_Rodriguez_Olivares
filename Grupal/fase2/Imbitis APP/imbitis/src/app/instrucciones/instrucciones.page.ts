@@ -9,6 +9,7 @@ import {
   createGesture,
   Gesture,
 } from '@ionic/angular';
+import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { InstructionCategory, InstructionStep, InstructionsService } from './instructions.service';
 import { UserPreferencesService } from '../core/user-preferences.service';
@@ -80,6 +81,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     private readonly instructionsService: InstructionsService,
     private readonly preferences: UserPreferencesService,
     private readonly feedbackService: FeedbackService,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -128,6 +130,10 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   trackCategory(_: number, item: InstructionCategory): number {
     return item.id;
+  }
+
+  trackTag(_: number, tag: string): string {
+    return tag;
   }
 
   onSearchChange(ev: SearchbarCustomEvent): void {
@@ -441,7 +447,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private matchesQuery(category: InstructionCategory, query: string): boolean {
     const name = category.name.toLowerCase();
     const description = category.description.toLowerCase();
-    if (name.includes(query) || description.includes(query)) {
+    const tagsMatch = category.tags.some(tag => tag.toLowerCase().includes(query));
+    if (name.includes(query) || description.includes(query) || tagsMatch) {
       return true;
     }
 
@@ -462,6 +469,13 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.feedbackSending = false;
     this.feedbackSuccess = false;
     this.feedbackError = '';
+  }
+
+  openSettings(): void {
+    this.closeSteps();
+    this.closeSubcategoryModal();
+    this.closeFeedback();
+    void this.router.navigate(['/settings']);
   }
 
   async callEmergency(): Promise<void> {
