@@ -49,11 +49,11 @@
                                                                                                                                "maximumWarning":  "2mb",
                                                                                                                                "maximumError":  "5mb"
                                                                                                                            },
-                                                                                                                           {
-                                                                                                                               "type":  "anyComponentStyle",
-                                                                                                                               "maximumWarning":  "3kb",
-                                                                                                                               "maximumError":  "6kb"
-                                                                                                                           }
+                                                                                                                            {
+                                                                                                                                "type":  "anyComponentStyle",
+                                                                                                                                "maximumWarning":  "12kb",
+                                                                                                                                "maximumError":  "18kb"
+                                                                                                                            }
                                                                                                                        ],
                                                                                                            "fileReplacements":  [
                                                                                                                                     {

@@ -1,19 +1,13 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  IonicModule,
-  AlertController,
-  SearchbarCustomEvent,
-  SegmentCustomEvent,
-  createGesture,
-  Gesture,
-} from '@ionic/angular';
+import { IonicModule, SearchbarCustomEvent, SegmentCustomEvent, createGesture, Gesture } from '@ionic/angular';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { InstructionCategory, InstructionStep, InstructionsService } from './instructions.service';
 import { UserPreferencesService } from '../core/user-preferences.service';
 import { FeedbackService } from '../core/feedback.service';
+import { EmergencyCallService } from '../core/emergency-call.service';
 
 type FeedbackChoice = 'like' | 'dislike';
 
@@ -77,11 +71,11 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   }
 
   constructor(
-    private readonly alertCtrl: AlertController,
     private readonly instructionsService: InstructionsService,
     private readonly preferences: UserPreferencesService,
     private readonly feedbackService: FeedbackService,
     private readonly router: Router,
+    private readonly emergencyCallService: EmergencyCallService,
   ) {}
 
   ngOnInit(): void {
@@ -479,23 +473,6 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   }
 
   async callEmergency(): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: 'Emergencia',
-      message: 'Deseas llamar a los servicios de emergencia?',
-      buttons: [
-        {
-          text: 'Cancelar',
-          role: 'cancel',
-        },
-        {
-          text: 'Llamar',
-          cssClass: 'emergency-call',
-          handler: () => {
-            window.open('tel:131', '_system');
-          },
-        },
-      ],
-    });
-    await alert.present();
+    await this.emergencyCallService.openEmergencyMenu();
   }
 }
