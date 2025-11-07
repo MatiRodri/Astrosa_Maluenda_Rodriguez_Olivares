@@ -60,6 +60,15 @@
               (click)="handleCategoryClick(item)"
               [class.card-active]="activeCardId === item.id"
             >
+              <button
+                type="button"
+                class="favorite-toggle"
+                [class.favorite-active]="isFavorite(item)"
+                (click)="toggleFavorite(item, $event)"
+                [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'"
+              >
+                <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
+              </button>
               <div class="photo-frame" *ngIf="item.iconUrl; else placeholderIcon">
                 <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
               </div>
@@ -120,6 +129,15 @@
                 *ngFor="let item of visibleSubcategories; trackBy: trackCategory"
                 (click)="handleSubcategoryClick(item)"
               >
+                <button
+                  type="button"
+                  class="favorite-toggle"
+                  [class.favorite-active]="isFavorite(item)"
+                  (click)="toggleFavorite(item, $event)"
+                  [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'"
+                >
+                  <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
+                </button>
                 <div class="photo-frame" *ngIf="item.iconUrl; else subPlaceholderIcon">
                   <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
                 </div>

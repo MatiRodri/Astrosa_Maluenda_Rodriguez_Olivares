@@ -125,7 +125,7 @@ body[color-theme='dark'] .instructions-search ion-searchbar::part(clear-button) 
 .instruction-card {
   background: var(--ion-color-primary, #3880ff);
   border-radius: 14px;
-  padding: 28px 20px;
+  padding: 32px 20px 24px;
   min-height: 240px;
   display: flex;
   flex-direction: column;
@@ -137,6 +137,8 @@ body[color-theme='dark'] .instructions-search ion-searchbar::part(clear-button) 
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
   text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .instruction-card:active {
@@ -154,6 +156,53 @@ body[color-theme='dark'] .instructions-search ion-searchbar::part(clear-button) 
     box-shadow: 0 14px 34px rgba(var(--ion-color-primary-rgb, 56, 128, 255), 0.35);
   }
   100% { transform: scale(1); }
+}
+
+.favorite-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 160ms ease, transform 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.favorite-toggle ion-icon {
+  font-size: 1.1rem;
+}
+
+.favorite-toggle:hover {
+  transform: scale(1.06);
+}
+
+.favorite-toggle:focus-visible {
+  outline: 2px solid #facc15;
+  outline-offset: 2px;
+}
+
+.favorite-toggle.favorite-active {
+  background: rgba(250, 204, 21, 0.25);
+  color: #facc15;
+  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.35);
+}
+
+body[color-theme='dark'] .favorite-toggle {
+  background: rgba(248, 250, 252, 0.12);
+  color: rgba(248, 250, 252, 0.9);
+}
+
+body[color-theme='dark'] .favorite-toggle.favorite-active {
+  background: rgba(250, 204, 21, 0.24);
+  color: #fde047;
 }
 
 .photo-frame {
@@ -518,7 +567,14 @@ body.dark .feedback-actions ion-button[color='danger'][fill='outline'] {
 
   .instruction-card {
     min-height: 210px;
-    padding: 24px 16px;
+    padding: 28px 16px 20px;
+  }
+
+  .favorite-toggle {
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
   }
 
   .instruction-photo,

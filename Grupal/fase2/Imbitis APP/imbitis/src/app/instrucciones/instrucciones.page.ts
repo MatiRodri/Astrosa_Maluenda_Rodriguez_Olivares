@@ -8,6 +8,7 @@ import { InstructionCategory, InstructionStep, InstructionsService } from './ins
 import { UserPreferencesService } from '../core/user-preferences.service';
 import { FeedbackService } from '../core/feedback.service';
 import { EmergencyCallService } from '../core/emergency-call.service';
+import { InstructionFavoritesService } from './instruction-favorites.service';
 
 type FeedbackChoice = 'like' | 'dislike';
 
@@ -21,6 +22,7 @@ type FeedbackChoice = 'like' | 'dislike';
 export class InstruccionesPage implements OnInit, OnDestroy {
   categories: InstructionCategory[] = [];
   filteredCategories: InstructionCategory[] = [];
+  favoriteCategoryIds = new Set<number>();
 
   subCategoryModalOpen = false;
   subCategoryPath: InstructionCategory[] = [];
@@ -57,8 +59,11 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private audio: HTMLAudioElement | null = null;
   private autoReplayTimeout: ReturnType<typeof setTimeout> | null = null;
   private preferencesSubscription?: Subscription;
+  private favoritesSubscription?: Subscription;
   private stepSwipeGesture?: Gesture;
   private stepContentElement?: HTMLElement | null;
+  private searchQuery = '';
+  private categoryOrder = new Map<number, number>();
 
   @ViewChild('stepContent', { read: ElementRef })
   set stepContentRef(el: ElementRef<HTMLElement> | undefined) {
@@ -76,6 +81,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     private readonly feedbackService: FeedbackService,
     private readonly router: Router,
     private readonly emergencyCallService: EmergencyCallService,
+    private readonly favoritesService: InstructionFavoritesService,
   ) {}
 
   ngOnInit(): void {
@@ -87,11 +93,17 @@ export class InstruccionesPage implements OnInit, OnDestroy {
         this.scheduleAutoPlayback();
       }
     });
+    this.favoritesSubscription = this.favoritesService.favorites$.subscribe(favorites => {
+      this.favoriteCategoryIds = new Set(favorites);
+      this.applyFilters();
+      this.visibleSubcategories = this.sortCategories(this.visibleSubcategories);
+    });
     void this.loadCategories();
   }
 
   ngOnDestroy(): void {
     this.preferencesSubscription?.unsubscribe();
+    this.favoritesSubscription?.unsubscribe();
     this.stopAudioPlayback();
     this.destroyStepSwipeGesture();
   }
@@ -112,7 +124,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     try {
       const categories = await this.instructionsService.fetchInstructions();
       this.categories = categories.filter(category => this.hasCategoryContent(category));
-      this.filteredCategories = [...this.categories];
+      this.categoryOrder = new Map(this.categories.map((category, index) => [category.id, index]));
+      this.applyFilters();
       this.closeSubcategoryModal();
     } catch (error: any) {
       const message = typeof error?.message === 'string' ? error.message : 'No fue posible cargar las instrucciones.';
@@ -132,14 +145,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   onSearchChange(ev: SearchbarCustomEvent): void {
     const query = (ev.detail?.value || '').toString().toLowerCase().trim();
-    if (!query) {
-      this.filteredCategories = [...this.categories];
-      return;
-    }
-
-    this.filteredCategories = this.categories.filter(item =>
-      this.matchesQuery(item, query)
-    );
+    this.searchQuery = query;
+    this.applyFilters();
   }
 
   handleCategoryClick(item: InstructionCategory): void {
@@ -176,14 +183,14 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   openSubcategoryModal(parent: InstructionCategory): void {
     this.stopAudioPlayback();
     this.subCategoryPath = [parent];
-    this.visibleSubcategories = [...parent.children];
+    this.visibleSubcategories = this.sortCategories(parent.children ?? []);
     this.subCategoryModalOpen = true;
   }
 
   handleSubcategoryClick(item: InstructionCategory): void {
     if (item.children?.length) {
       this.subCategoryPath = [...this.subCategoryPath, item];
-      this.visibleSubcategories = [...item.children];
+      this.visibleSubcategories = this.sortCategories(item.children ?? []);
       return;
     }
 
@@ -203,7 +210,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
     this.subCategoryPath = this.subCategoryPath.slice(0, -1);
     const parent = this.currentSubcategoryParent;
-    this.visibleSubcategories = parent ? [...parent.children] : [];
+    this.visibleSubcategories = parent ? this.sortCategories(parent.children ?? []) : [];
   }
 
   closeSubcategoryModal(): void {
@@ -214,6 +221,16 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private resetSubcategoryFlow(): void {
     this.subCategoryPath = [];
     this.visibleSubcategories = [];
+  }
+
+  toggleFavorite(category: InstructionCategory, event: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    this.favoritesService.toggleFavorite(category.id);
+  }
+
+  isFavorite(category: InstructionCategory): boolean {
+    return this.favoriteCategoryIds.has(category.id);
   }
 
   closeSteps(): void {
@@ -474,5 +491,31 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   async callEmergency(): Promise<void> {
     await this.emergencyCallService.openEmergencyMenu();
+  }
+
+  private applyFilters(): void {
+    const list = this.searchQuery
+      ? this.categories.filter(item => this.matchesQuery(item, this.searchQuery))
+      : [...this.categories];
+    this.filteredCategories = this.sortCategories(list);
+  }
+
+  private sortCategories(items: InstructionCategory[] = []): InstructionCategory[] {
+    if (!items.length) {
+      return [];
+    }
+    return [...items].sort((a, b) => {
+      const aFav = this.favoriteCategoryIds.has(a.id) ? 1 : 0;
+      const bFav = this.favoriteCategoryIds.has(b.id) ? 1 : 0;
+      if (aFav !== bFav) {
+        return bFav - aFav;
+      }
+      const aOrder = this.categoryOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const bOrder = this.categoryOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+    });
   }
 }
