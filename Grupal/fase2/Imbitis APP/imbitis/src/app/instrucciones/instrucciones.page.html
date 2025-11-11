@@ -42,6 +42,16 @@
     ></ion-searchbar>
   </div>
 
+  <div class="offline-banner" *ngIf="offlineBannerMessage">
+    <ion-icon name="cloud-offline-outline"></ion-icon>
+    <span>{{ offlineBannerMessage }}</span>
+  </div>
+
+  <div class="offline-banner info" *ngIf="offlineActionMessage">
+    <ion-icon name="cloud-download-outline"></ion-icon>
+    <span>{{ offlineActionMessage }}</span>
+  </div>
+
   <ng-container *ngIf="isLoading; else contentState">
     <div class="state-wrapper">
       <ion-spinner name="crescent"></ion-spinner>
@@ -60,6 +70,21 @@
               (click)="handleCategoryClick(item)"
               [class.card-active]="activeCardId === item.id"
             >
+              <button
+                type="button"
+                class="download-toggle"
+                [class.download-active]="isOfflineAvailable(item)"
+                (click)="toggleOfflineCategory(item, $event)"
+                [attr.aria-label]="
+                  isOfflineAvailable(item)
+                    ? 'Quitar descarga sin conexion'
+                    : 'Descargar paso a paso'
+                "
+              >
+                <ion-icon
+                  [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"
+                ></ion-icon>
+              </button>
               <button
                 type="button"
                 class="favorite-toggle"
@@ -131,6 +156,21 @@
               >
                 <button
                   type="button"
+                  class="download-toggle"
+                  [class.download-active]="isOfflineAvailable(item)"
+                  (click)="toggleOfflineCategory(item, $event)"
+                  [attr.aria-label]="
+                    isOfflineAvailable(item)
+                      ? 'Quitar descarga sin conexion'
+                      : 'Descargar paso a paso'
+                  "
+                >
+                  <ion-icon
+                    [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"
+                  ></ion-icon>
+                </button>
+                <button
+                  type="button"
                   class="favorite-toggle"
                   [class.favorite-active]="isFavorite(item)"
                   (click)="toggleFavorite(item, $event)"
@@ -167,6 +207,28 @@
               <ion-button fill="clear" (click)="closeSteps()">Cerrar</ion-button>
             </ion-buttons>
             <ion-title>{{ selectedCategory?.name }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button
+                fill="clear"
+                [disabled]="!selectedCategory"
+                (click)="toggleOfflineCategory(selectedCategory, $event)"
+                [attr.aria-label]="
+                  selectedCategory
+                    ? (isOfflineAvailable(selectedCategory)
+                        ? 'Quitar descarga sin conexion'
+                        : 'Descargar para usar sin conexion')
+                    : 'Descarga sin conexion no disponible'
+                "
+              >
+                <ion-icon
+                  [name]="
+                    selectedCategory && isOfflineAvailable(selectedCategory)
+                      ? 'cloud-done-outline'
+                      : 'cloud-download-outline'
+                  "
+                ></ion-icon>
+              </ion-button>
+            </ion-buttons>
           </ion-toolbar>
         </ion-header>
         <ion-content>
@@ -174,6 +236,24 @@
             <div class="step-content" #stepContent>
               <div class="step-counter">
                 Paso {{ currentStepIndex + 1 }} de {{ selectedCategory?.steps?.length || 0 }}
+              </div>
+
+              <div class="voice-indicator" *ngIf="voiceStatus !== 'unavailable' || voiceStatusMessage">
+                <ion-chip color="success" *ngIf="voiceStatus === 'listening'">
+                  <ion-icon name="mic"></ion-icon>
+                  <ion-label>Di "LISTO" para continuar</ion-label>
+                </ion-chip>
+                <ion-chip color="warning" *ngIf="voiceStatus === 'no-permission'">
+                  <ion-icon name="alert-circle"></ion-icon>
+                  <ion-label>Permite el microfono para usar la voz</ion-label>
+                </ion-chip>
+                <ion-chip color="medium" *ngIf="voiceStatus === 'error'">
+                  <ion-icon name="mic-off"></ion-icon>
+                  <ion-label>No se pudo activar el microfono</ion-label>
+                </ion-chip>
+                <ion-note class="voice-note" *ngIf="voiceStatusMessage">
+                  {{ voiceStatusMessage }}
+                </ion-note>
               </div>
 
               <div class="step-media" *ngIf="step.imageUrl">

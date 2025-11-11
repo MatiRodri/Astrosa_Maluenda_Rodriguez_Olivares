@@ -9,6 +9,8 @@ import { UserPreferencesService } from '../core/user-preferences.service';
 import { FeedbackService } from '../core/feedback.service';
 import { EmergencyCallService } from '../core/emergency-call.service';
 import { InstructionFavoritesService } from './instruction-favorites.service';
+import { VoiceActivationState, VoiceCommandService } from '../core/voice-command.service';
+import { InstructionOfflineService } from './instruction-offline.service';
 
 type FeedbackChoice = 'like' | 'dislike';
 
@@ -23,6 +25,9 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   categories: InstructionCategory[] = [];
   filteredCategories: InstructionCategory[] = [];
   favoriteCategoryIds = new Set<number>();
+  offlineCategoryIds = new Set<number>();
+  offlineBannerMessage = '';
+  offlineActionMessage = '';
 
   subCategoryModalOpen = false;
   subCategoryPath: InstructionCategory[] = [];
@@ -55,15 +60,31 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   feedbackError = '';
   completedCategoryName = '';
   completedCategoryId: number | null = null;
+  voiceStatus: VoiceActivationState = 'unavailable';
+  voiceStatusMessage = '';
 
   private audio: HTMLAudioElement | null = null;
   private autoReplayTimeout: ReturnType<typeof setTimeout> | null = null;
   private preferencesSubscription?: Subscription;
   private favoritesSubscription?: Subscription;
+  private offlineSubscription?: Subscription;
+  private offlineActionTimeout: ReturnType<typeof setTimeout> | null = null;
   private stepSwipeGesture?: Gesture;
   private stepContentElement?: HTMLElement | null;
   private searchQuery = '';
   private categoryOrder = new Map<number, number>();
+  private categoryRiskScore = new Map<number, number>();
+  private readonly handleVoiceAdvance = (): void => {
+    const category = this.selectedCategory;
+    if (!category) {
+      return;
+    }
+    if (this.currentStepIndex < category.steps.length - 1) {
+      this.nextStep();
+      return;
+    }
+    this.openFeedback();
+  };
 
   @ViewChild('stepContent', { read: ElementRef })
   set stepContentRef(el: ElementRef<HTMLElement> | undefined) {
@@ -82,6 +103,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly emergencyCallService: EmergencyCallService,
     private readonly favoritesService: InstructionFavoritesService,
+    private readonly voiceCommands: VoiceCommandService,
+    private readonly offlineInstructions: InstructionOfflineService,
   ) {}
 
   ngOnInit(): void {
@@ -98,14 +121,23 @@ export class InstruccionesPage implements OnInit, OnDestroy {
       this.applyFilters();
       this.visibleSubcategories = this.sortCategories(this.visibleSubcategories);
     });
+    this.offlineSubscription = this.offlineInstructions.records$.subscribe(records => {
+      this.offlineCategoryIds = new Set(records.map(record => record.id));
+    });
     void this.loadCategories();
   }
 
   ngOnDestroy(): void {
     this.preferencesSubscription?.unsubscribe();
     this.favoritesSubscription?.unsubscribe();
+    this.offlineSubscription?.unsubscribe();
+    if (this.offlineActionTimeout) {
+      clearTimeout(this.offlineActionTimeout);
+      this.offlineActionTimeout = null;
+    }
     this.stopAudioPlayback();
     this.destroyStepSwipeGesture();
+    void this.disableVoiceCommands();
   }
 
   get currentStep(): InstructionStep | null {
@@ -121,15 +153,25 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   async loadCategories(): Promise<void> {
     this.isLoading = true;
     this.loadError = '';
+    this.offlineBannerMessage = '';
     try {
       const categories = await this.instructionsService.fetchInstructions();
       this.categories = categories.filter(category => this.hasCategoryContent(category));
-      this.categoryOrder = new Map(this.categories.map((category, index) => [category.id, index]));
+      this.rebuildCategoryMetadata();
       this.applyFilters();
       this.closeSubcategoryModal();
     } catch (error: any) {
       const message = typeof error?.message === 'string' ? error.message : 'No fue posible cargar las instrucciones.';
-      this.loadError = message;
+      const offlineCategories = this.offlineInstructions.getOfflineCategories();
+      if (offlineCategories.length) {
+        this.categories = offlineCategories.filter(category => this.hasCategoryContent(category));
+        this.rebuildCategoryMetadata();
+        this.applyFilters();
+        this.closeSubcategoryModal();
+        this.offlineBannerMessage = `${message} Mostrando instrucciones guardadas sin conexion.`;
+      } else {
+        this.loadError = message;
+      }
     } finally {
       this.isLoading = false;
     }
@@ -141,6 +183,44 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   trackTag(_: number, tag: string): string {
     return tag;
+  }
+
+  isOfflineAvailable(category: InstructionCategory | null): boolean {
+    if (!category) {
+      return false;
+    }
+    return this.offlineCategoryIds.has(category.id);
+  }
+
+  toggleOfflineCategory(category: InstructionCategory | null, event?: Event): void {
+    if (!category) {
+      return;
+    }
+    event?.stopPropagation();
+    try {
+      if (this.offlineInstructions.hasCategory(category.id)) {
+        this.offlineInstructions.removeCategory(category.id);
+        this.setOfflineActionMessage(`Se elimin\u00f3 la descarga de "${category.name}".`);
+      } else {
+        this.offlineInstructions.saveCategory(category);
+        this.setOfflineActionMessage(`"${category.name}" disponible sin conexi\u00f3n.`);
+      }
+    } catch (error: any) {
+      const message =
+        typeof error?.message === 'string' ? error.message : 'No se pudo actualizar la descarga.';
+      this.setOfflineActionMessage(message);
+    }
+  }
+
+  private setOfflineActionMessage(message: string): void {
+    this.offlineActionMessage = message;
+    if (this.offlineActionTimeout) {
+      clearTimeout(this.offlineActionTimeout);
+    }
+    this.offlineActionTimeout = setTimeout(() => {
+      this.offlineActionMessage = '';
+      this.offlineActionTimeout = null;
+    }, 4000);
   }
 
   onSearchChange(ev: SearchbarCustomEvent): void {
@@ -172,6 +252,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.activeCardId = item.id;
     this.stopAudioPlayback();
     this.scheduleAutoPlayback();
+    void this.enableVoiceCommands();
 
     setTimeout(() => {
       if (this.activeCardId === item.id) {
@@ -240,6 +321,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.stopAudioPlayback();
     this.stepContentElement = null;
     this.destroyStepSwipeGesture();
+    void this.disableVoiceCommands();
   }
 
   nextStep(): void {
@@ -258,6 +340,26 @@ export class InstruccionesPage implements OnInit, OnDestroy {
       this.stopAudioPlayback();
       this.scheduleAutoPlayback();
     }
+  }
+
+  private async enableVoiceCommands(): Promise<void> {
+    this.voiceStatusMessage = '';
+    await this.voiceCommands.deactivate();
+    const status = await this.voiceCommands.activate(this.handleVoiceAdvance);
+    this.voiceStatus = status;
+    if (status === 'no-permission') {
+      this.voiceStatusMessage = 'Activa el permiso de microfono para decir \"LISTO\".';
+    } else if (status === 'unavailable') {
+      this.voiceStatusMessage = 'Los comandos por voz solo estan disponibles en la app instalada en Android.';
+    } else if (status === 'error') {
+      this.voiceStatusMessage = 'No se pudo iniciar el reconocimiento de voz.';
+    }
+  }
+
+  private async disableVoiceCommands(): Promise<void> {
+    await this.voiceCommands.deactivate();
+    this.voiceStatus = 'unavailable';
+    this.voiceStatusMessage = '';
   }
 
   async toggleAudioPlayback(): Promise<void> {
@@ -411,6 +513,9 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.completedCategoryName = category?.name ?? '';
     this.resetFeedback();
     this.feedbackModalOpen = true;
+    if (category) {
+      void this.incrementCategoryViews(category);
+    }
   }
 
   closeFeedback(): void {
@@ -510,12 +615,71 @@ export class InstruccionesPage implements OnInit, OnDestroy {
       if (aFav !== bFav) {
         return bFav - aFav;
       }
+
+      const riskDiff =
+        (this.categoryRiskScore.get(b.id) ?? this.computeRiskScore(b)) -
+        (this.categoryRiskScore.get(a.id) ?? this.computeRiskScore(a));
+      if (riskDiff !== 0) {
+        return riskDiff;
+      }
+
       const aOrder = this.categoryOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER;
       const bOrder = this.categoryOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER;
       if (aOrder !== bOrder) {
         return aOrder - bOrder;
       }
+
       return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
     });
+  }
+
+  private rebuildCategoryMetadata(): void {
+    this.categoryOrder.clear();
+    this.categoryRiskScore.clear();
+    let index = 0;
+
+    const traverse = (items: InstructionCategory[]) => {
+      for (const item of items) {
+        if (!this.categoryOrder.has(item.id)) {
+          this.categoryOrder.set(item.id, index++);
+        }
+        this.categoryRiskScore.set(item.id, this.computeRiskScore(item));
+        if (item.children?.length) {
+          traverse(item.children);
+        }
+      }
+    };
+
+    traverse(this.categories);
+  }
+
+  private computeRiskScore(category: InstructionCategory): number {
+    if (typeof category.riskScore === 'number' && Number.isFinite(category.riskScore)) {
+      return category.riskScore;
+    }
+    const views = Math.max(0, category.viewCount ?? 0);
+    const danger = Math.max(1, category.dangerLevel ?? 1);
+    return views * danger;
+  }
+
+  private refreshVisibleSubcategories(): void {
+    if (!this.subCategoryModalOpen) {
+      return;
+    }
+    const parent = this.currentSubcategoryParent;
+    this.visibleSubcategories = parent ? this.sortCategories(parent.children ?? []) : [];
+  }
+
+  private async incrementCategoryViews(category: InstructionCategory): Promise<void> {
+    try {
+      const updated = await this.instructionsService.incrementCategoryViewCount(category.id, category.viewCount);
+      category.viewCount = updated;
+      category.riskScore = this.computeRiskScore(category);
+      this.categoryRiskScore.set(category.id, category.riskScore);
+      this.applyFilters();
+      this.refreshVisibleSubcategories();
+    } catch {
+      // ignore update failures silently to avoid bloquear feedback
+    }
   }
 }

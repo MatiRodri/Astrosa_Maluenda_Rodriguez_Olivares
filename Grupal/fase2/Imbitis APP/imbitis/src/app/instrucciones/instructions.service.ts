@@ -17,6 +17,9 @@ export interface InstructionCategory {
   tags: string[];
   steps: InstructionStep[];
   children: InstructionCategory[];
+  viewCount: number;
+  dangerLevel: number;
+  riskScore: number;
 }
 
 interface CategoryRow {
@@ -26,6 +29,8 @@ interface CategoryRow {
   IconURL: string | null;
   ParentCategoryID: number | null;
   Tags?: string[] | string | null;
+  contador_vistas?: number | null;
+  nivel_peligro?: number | null;
 }
 
 interface StepRow {
@@ -46,6 +51,9 @@ interface CategoryBuilder {
   parentId: number | null;
   steps: InstructionStep[];
   children: CategoryBuilder[];
+  viewCount: number;
+  dangerLevel: number;
+  riskScore: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -110,6 +118,27 @@ export class InstructionsService {
     const builders = new Map<number, CategoryBuilder>();
     for (const row of categoryRows) {
       const rawTags = (row as any).Tags ?? (row as any).tags ?? null;
+      const viewCount = this.resolveNumericValue(
+        this.pickValue(row, [
+          'contador_vistas',
+          'Contador_vistas',
+          'ContadorVistas',
+          'counter_views',
+          'CounterViews',
+        ]) ?? 0,
+      );
+      const dangerLevel = Math.max(
+        1,
+        this.resolveNumericValue(
+          this.pickValue(row, [
+            'nivel_peligro',
+            'Nivel_peligro',
+            'NivelPeligro',
+            'danger_level',
+            'DangerLevel',
+          ]) ?? 1,
+        ) || 1,
+      );
       builders.set(row.CategoryID, {
         id: row.CategoryID,
         name: row.CategoryName?.trim() || 'Sin titulo',
@@ -119,6 +148,9 @@ export class InstructionsService {
         parentId: row.ParentCategoryID,
         steps: [],
         children: [],
+        viewCount,
+        dangerLevel,
+        riskScore: viewCount * dangerLevel,
       });
     }
 
@@ -187,6 +219,9 @@ export class InstructionsService {
         tags: [...builder.tags],
         steps: [...builder.steps],
         children,
+        viewCount: builder.viewCount,
+        dangerLevel: builder.dangerLevel,
+        riskScore: builder.riskScore,
       };
     };
 
@@ -194,5 +229,44 @@ export class InstructionsService {
       .map(convertBuilder)
       .filter((category): category is InstructionCategory => category !== null)
       .sort(sortByName);
+  }
+
+  async incrementCategoryViewCount(categoryId: number, currentValue = 0): Promise<number> {
+    const client = this.supabase.getClient();
+    const nextValue = Math.max(0, currentValue) + 1;
+    const { data, error } = await client
+      .from('categories')
+      .update({ contador_vistas: nextValue })
+      .eq('CategoryID', categoryId)
+      .select('contador_vistas')
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'No fue posible actualizar el contador de visitas.');
+    }
+
+    const storedValue = this.resolveNumericValue(data?.contador_vistas ?? nextValue);
+    return storedValue || nextValue;
+  }
+
+  private resolveNumericValue(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
+  private pickValue(row: CategoryRow, keys: string[]): unknown {
+    const source = row as unknown as Record<string, unknown>;
+    for (const key of keys) {
+      if (key in source && source[key] !== undefined && source[key] !== null) {
+        return source[key];
+      }
+    }
+    return undefined;
   }
 }
