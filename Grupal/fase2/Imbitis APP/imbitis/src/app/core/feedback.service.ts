@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 
 export interface FeedbackPayload {
@@ -10,7 +10,7 @@ export interface FeedbackPayload {
 
 @Injectable({ providedIn: 'root' })
 export class FeedbackService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly supabase = inject(SupabaseService);
 
   async submitFeedback(payload: FeedbackPayload): Promise<void> {
     const { categoryId, rating, comment, appVersion } = payload;

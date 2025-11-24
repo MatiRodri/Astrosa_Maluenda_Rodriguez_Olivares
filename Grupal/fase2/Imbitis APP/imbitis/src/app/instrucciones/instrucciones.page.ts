@@ -1,5 +1,6 @@
 ﻿import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, SearchbarCustomEvent, SegmentCustomEvent, createGesture, Gesture } from '@ionic/angular';
 import { Router } from '@angular/router';
@@ -23,6 +24,14 @@ type CategoryFilter = 'all' | 'favorites' | 'offline';
   styleUrls: ['./instrucciones.page.scss'],
 })
 export class InstruccionesPage implements OnInit, OnDestroy {
+  private readonly instructionsService = inject(InstructionsService);
+  private readonly preferences = inject(UserPreferencesService);
+  private readonly feedbackService = inject(FeedbackService);
+  private readonly router = inject(Router);
+  private readonly emergencyCallService = inject(EmergencyCallService);
+  private readonly favoritesService = inject(InstructionFavoritesService);
+  private readonly voiceCommands = inject(VoiceCommandService);
+  private readonly offlineInstructions = inject(InstructionOfflineService);
   categories: InstructionCategory[] = [];
   filteredCategories: InstructionCategory[] = [];
   favoriteCategoryIds = new Set<number>();
@@ -99,6 +108,7 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private favoritesSubscription?: Subscription;
   private offlineSubscription?: Subscription;
   private offlineActionTimeout: ReturnType<typeof setTimeout> | null = null;
+  private usingOfflineData = false;
   private stepSwipeGesture?: Gesture;
   private stepContentElement?: HTMLElement | null;
   private categoryOrder = new Map<number, number>();
@@ -127,17 +137,6 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     }
   }
 
-  constructor(
-    private readonly instructionsService: InstructionsService,
-    private readonly preferences: UserPreferencesService,
-    private readonly feedbackService: FeedbackService,
-    private readonly router: Router,
-    private readonly emergencyCallService: EmergencyCallService,
-    private readonly favoritesService: InstructionFavoritesService,
-    private readonly voiceCommands: VoiceCommandService,
-    private readonly offlineInstructions: InstructionOfflineService,
-  ) {}
-
   ngOnInit(): void {
     this.preferencesSubscription = this.preferences.autoPlayEnabled$.subscribe(enabled => {
       this.autoPlayEnabled = enabled;
@@ -154,6 +153,30 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     });
     this.offlineSubscription = this.offlineInstructions.records$.subscribe(records => {
       this.offlineCategoryIds = new Set(records.map(record => record.id));
+      const hasOfflineRecords = records.length > 0;
+      if (
+        hasOfflineRecords &&
+        (this.usingOfflineData || this.loadError || (!this.categories.length && !this.isLoading))
+      ) {
+        const offlineCategories = records
+          .map(record => record.category)
+          .filter(category => this.hasCategoryContent(category));
+        this.categories = offlineCategories;
+        this.rebuildCategoryMetadata();
+        this.applyFilters();
+        this.offlineBannerMessage = offlineCategories.length
+          ? 'Mostrando instrucciones guardadas sin conexion.'
+          : '';
+        this.loadError = offlineCategories.length ? '' : 'No hay instrucciones disponibles sin conexion.';
+        this.isLoading = false;
+        this.usingOfflineData = offlineCategories.length > 0;
+        return;
+      }
+      this.applyFilters();
+      this.visibleSubcategories = this.sortCategories(this.visibleSubcategories);
+      if (!records.length) {
+        this.offlineBannerMessage = '';
+      }
     });
     void this.loadCategories();
   }
@@ -194,21 +217,30 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.loadError = '';
     this.offlineBannerMessage = '';
+    this.usingOfflineData = false;
     try {
       const categories = await this.instructionsService.fetchInstructions();
       this.categories = categories.filter(category => this.hasCategoryContent(category));
       this.rebuildCategoryMetadata();
       this.applyFilters();
       this.closeSubcategoryModal();
+      this.usingOfflineData = false;
+      this.offlineBannerMessage = '';
     } catch (error: any) {
-      const message = typeof error?.message === 'string' ? error.message : 'No fue posible cargar las instrucciones.';
+      const offlineMessage = 'Sin conexion. Mostrando instrucciones guardadas sin conexion.';
+      const fallbackMessage = 'Sin conexion. No se pudo cargar el contenido.';
+      const message =
+        typeof error?.message === 'string' && !/failed to fetch/i.test(error.message)
+          ? error.message
+          : fallbackMessage;
       const offlineCategories = this.offlineInstructions.getOfflineCategories();
       if (offlineCategories.length) {
         this.categories = offlineCategories.filter(category => this.hasCategoryContent(category));
         this.rebuildCategoryMetadata();
         this.applyFilters();
         this.closeSubcategoryModal();
-        this.offlineBannerMessage = `${message} Mostrando instrucciones guardadas sin conexion.`;
+        this.usingOfflineData = true;
+        this.offlineBannerMessage = offlineMessage;
       } else {
         this.loadError = message;
       }
@@ -288,6 +320,10 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   onCategoryFilterChange(event: SegmentCustomEvent): void {
     const value = (event.detail.value as CategoryFilter) ?? 'all';
+    const allowed: CategoryFilter[] = ['all', 'favorites', 'offline'];
+    if (!allowed.includes(value)) {
+      return;
+    }
     if (this.categoryFilter === value) {
       return;
     }
@@ -443,7 +479,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
 
   async toggleAudioPlayback(): Promise<void> {
     const step = this.currentStep;
-    if (!step || !step.audioUrl) {
+    const source = step ? this.getStepAudioSource(step) : undefined;
+    if (!step || !source) {
       return;
     }
 
@@ -467,14 +504,15 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   }
 
   private async playStepAudio(step: InstructionStep): Promise<void> {
-    if (!step.audioUrl) {
+    const source = this.getStepAudioSource(step);
+    if (!source) {
       return;
     }
 
     this.stopAudioPlayback();
     this.isAudioLoading = true;
 
-    const audio = new Audio(step.audioUrl);
+    const audio = new Audio(source);
     this.audio = audio;
     audio.playbackRate = this.audioPlaybackRate;
 
@@ -514,7 +552,8 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     }
 
     const step = this.currentStep;
-    if (!step || !step.audioUrl) {
+    const source = step ? this.getStepAudioSource(step) : undefined;
+    if (!step || !source) {
       return;
     }
 
@@ -529,6 +568,10 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     this.autoReplayTimeout = setTimeout(() => {
       void this.playStepAudio(step);
     }, delayMs);
+  }
+
+  private getStepAudioSource(step: InstructionStep): string | undefined {
+    return step.localAudioSrc || step.audioUrl;
   }
 
   private initializeStepSwipeGesture(): void {

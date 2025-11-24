@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { SupabaseService } from '../core/supabase.service';
 import { EmergencyCallService } from '../core/emergency-call.service';
 
@@ -9,13 +9,10 @@ import { EmergencyCallService } from '../core/emergency-call.service';
   standalone: false,
 })
 export class HomePage implements OnInit {
+  private readonly supabaseService = inject(SupabaseService);
+  private readonly emergencyCallService = inject(EmergencyCallService);
   connectionMessage = '';
   connectionOk: boolean | null = null;
-
-  constructor(
-    private readonly supabaseService: SupabaseService,
-    private readonly emergencyCallService: EmergencyCallService,
-  ) {}
 
   ngOnInit(): void {
     void this.checkConnection();

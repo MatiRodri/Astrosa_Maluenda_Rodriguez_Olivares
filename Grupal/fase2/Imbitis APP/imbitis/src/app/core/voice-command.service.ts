@@ -1,4 +1,4 @@
-import { Injectable, NgZone } from '@angular/core';
+import { Injectable, NgZone, inject } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import {
   SpeechRecognition as CordovaSpeechRecognition,
@@ -53,18 +53,30 @@ export type VoiceActivationState =
 
 @Injectable({ providedIn: 'root' })
 export class VoiceCommandService {
-  private static readonly KEYWORDS = ['listo', 'listos', 'siguiente', 'continuar', 'hecho', 'avanza', 'ok'];
+  private readonly zone = inject(NgZone);
+  private readonly speech = inject(CordovaSpeechRecognition);
+  private static readonly KEYWORDS = [
+    'listo',
+    'listos',
+    'lista',
+    'list',
+    'listoh',
+    'listho',
+    'siguiente',
+    'continuar',
+    'hecho',
+    'avanza',
+    'ok',
+  ];
 
   private recognitionSub?: Subscription;
   private lastTrigger = 0;
   private listening = false;
   private webRecognition: BrowserSpeechRecognition | null = null;
   private webRestartTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  constructor(
-    private readonly zone: NgZone,
-    private readonly speech: CordovaSpeechRecognition,
-  ) {}
+  private nativeErrorCount = 0;
+  private nativeErrorWindowStart = 0;
+  private nativeRetryTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async activate(onListo: () => void): Promise<VoiceActivationState> {
     if (this.isNativePlatform()) {
@@ -93,6 +105,8 @@ export class VoiceCommandService {
       return 'listening';
     }
 
+    this.nativeErrorCount = 0;
+    this.nativeErrorWindowStart = 0;
     return this.startNativeListening(onListo);
   }
 
@@ -112,7 +126,15 @@ export class VoiceCommandService {
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 5;
-      recognition.onerror = () => this.restartBrowserRecognition(onListo);
+      recognition.onerror = (event: any) => {
+        const reason = event?.error;
+        if (reason === 'not-allowed' || reason === 'service-not-allowed') {
+          this.listening = false;
+          this.destroyBrowserRecognition();
+          return;
+        }
+        this.restartBrowserRecognition(onListo);
+      };
       recognition.onend = () => {
         if (this.listening) {
           this.restartBrowserRecognition(onListo);
@@ -146,15 +168,21 @@ export class VoiceCommandService {
       this.listening = true;
       return 'listening';
     } catch {
-      await this.detachListeners();
+      this.detachListeners();
       this.listening = false;
       return 'error';
     }
   }
 
   async deactivate(): Promise<void> {
+    if (this.nativeRetryTimeout) {
+      clearTimeout(this.nativeRetryTimeout);
+      this.nativeRetryTimeout = null;
+    }
+    this.nativeErrorCount = 0;
+    this.nativeErrorWindowStart = 0;
     if (this.isNativePlatform()) {
-      await this.detachListeners();
+      this.detachListeners();
       if (this.isIOSPlatform()) {
         try {
           await this.speech.stopListening();
@@ -199,6 +227,8 @@ export class VoiceCommandService {
 
   private startListening(onListo: () => void): void {
     this.detachListeners();
+    this.nativeErrorCount = 0;
+    this.nativeErrorWindowStart = 0;
     const options: SpeechRecognitionListeningOptionsAndroid = {
       language: this.resolveLocale(),
       matches: 3,
@@ -210,12 +240,12 @@ export class VoiceCommandService {
     this.recognitionSub = stream.subscribe({
       next: matches => this.handleMatches(matches ?? [], onListo),
       error: () => {
-        void this.restartNativeListening(onListo);
+        this.handleNativeError(onListo);
       },
     });
   }
 
-  private async detachListeners(): Promise<void> {
+  private detachListeners(): void {
     this.recognitionSub?.unsubscribe();
     this.recognitionSub = undefined;
   }
@@ -266,6 +296,10 @@ export class VoiceCommandService {
   private restartBrowserRecognition(onListo: () => void): void {
     this.destroyBrowserRecognition();
     if (!this.listening) {
+      return;
+    }
+    if (!this.supportsBrowserSpeech()) {
+      this.listening = false;
       return;
     }
     this.webRestartTimeout = setTimeout(() => {
@@ -325,13 +359,36 @@ export class VoiceCommandService {
     if (!this.listening || !this.isNativePlatform()) {
       return;
     }
-    await this.detachListeners();
+    this.detachListeners();
     await new Promise(resolve => setTimeout(resolve, 150));
     try {
       this.startListening(onListo);
     } catch {
       this.listening = false;
     }
+  }
+
+  private handleNativeError(onListo: () => void): void {
+    if (this.nativeRetryTimeout) {
+      clearTimeout(this.nativeRetryTimeout);
+      this.nativeRetryTimeout = null;
+    }
+    if (!this.listening) {
+      return;
+    }
+    const now = Date.now();
+    if (now - this.nativeErrorWindowStart > 5000) {
+      this.nativeErrorWindowStart = now;
+      this.nativeErrorCount = 0;
+    }
+    this.nativeErrorCount += 1;
+    const delay = Math.min(1200, 200 * this.nativeErrorCount);
+    this.nativeRetryTimeout = setTimeout(() => {
+      this.nativeRetryTimeout = null;
+      if (this.listening) {
+        void this.restartNativeListening(onListo);
+      }
+    }, delay);
   }
 
   private isIOSPlatform(): boolean {

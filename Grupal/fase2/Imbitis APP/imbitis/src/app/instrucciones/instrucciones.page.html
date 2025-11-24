@@ -443,7 +443,7 @@
               <ion-button fill="clear" (click)="closeFeedback()">Omitir</ion-button>
             </ion-buttons>
             <ion-buttons slot="end">
-              <ion-button color="primary" (click)="submitFeedback()" [disabled]="feedbackSending">
+              <ion-button color="primary" (click)="submitFeedback()" [disabled]="feedbackSending || !feedbackChoice">
                 <ion-spinner slot="start" *ngIf="feedbackSending" name="dots"></ion-spinner>
                 Enviar
               </ion-button>

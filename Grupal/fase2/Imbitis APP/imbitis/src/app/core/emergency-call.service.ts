@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { ActionSheetController } from '@ionic/angular';
 
 interface EmergencyAction {
@@ -11,12 +11,11 @@ interface EmergencyAction {
   providedIn: 'root',
 })
 export class EmergencyCallService {
+  private readonly actionSheetController = inject(ActionSheetController);
   private readonly actions: EmergencyAction[] = [
     { label: 'Ambulancia (131)', number: '131', icon: 'medical-outline' },
     { label: 'Bomberos (132)', number: '132', icon: 'flame-outline' },
   ];
-
-  constructor(private readonly actionSheetController: ActionSheetController) {}
 
   async openEmergencyMenu(): Promise<void> {
     const actionSheet = await this.actionSheetController.create({

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../core/supabase.service';
 
 export interface InstructionStep {
@@ -60,7 +60,7 @@ interface CategoryBuilder {
 
 @Injectable({ providedIn: 'root' })
 export class InstructionsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  private readonly supabase = inject(SupabaseService);
 
   private normalizeTags(value: unknown): string[] {
     if (!value) {

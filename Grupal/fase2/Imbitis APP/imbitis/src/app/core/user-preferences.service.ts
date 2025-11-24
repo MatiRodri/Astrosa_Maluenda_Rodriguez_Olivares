@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
 export type ColorProfile =
@@ -354,6 +354,7 @@ const FONT_SCALE_VALUES: Record<FontScale, number> = {
 
 @Injectable({ providedIn: 'root' })
 export class UserPreferencesService {
+  private readonly documentRef: Document | null = inject(DOCUMENT, { optional: true }) ?? null;
   private readonly autoPlayKey = 'instructionsAutoPlayEnabled';
   private readonly colorProfileKey = 'colorProfile';
   private readonly voiceCommandsKey = 'voiceCommandsEnabled';
@@ -368,7 +369,7 @@ export class UserPreferencesService {
   readonly voiceCommandsEnabled$ = this.voiceCommandsSubject.asObservable();
   readonly fontScale$ = this.fontScaleSubject.asObservable();
 
-  constructor(@Inject(DOCUMENT) private readonly documentRef: Document | null) {
+  constructor() {
     this.applyColorProfile(this.colorProfileSubject.value);
     this.applyFontScale(this.fontScaleSubject.value);
   }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
@@ -10,11 +10,4 @@ import { IonicModule } from '@ionic/angular';
   templateUrl: './emergencias.page.html',
   styleUrls: ['./emergencias.page.scss'],
 })
-export class EmergenciasPage implements OnInit {
-
-  constructor() { }
-
-  ngOnInit() {
-  }
-
-}
+export class EmergenciasPage {}

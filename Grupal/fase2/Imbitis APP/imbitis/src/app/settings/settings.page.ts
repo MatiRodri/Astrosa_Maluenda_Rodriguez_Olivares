@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { AlertController } from '@ionic/angular';
 import { OverlayWidgetService } from '../core/overlay-widget.service';
 import {
@@ -14,6 +14,9 @@ import {
   standalone: false,
 })
 export class SettingsPage implements OnInit {
+  private readonly alertController = inject(AlertController);
+  private readonly overlayWidget = inject(OverlayWidgetService);
+  private readonly preferences = inject(UserPreferencesService);
   widgetEnabled = false;
   autoPlayEnabled = true;
   voiceCommandsEnabled = true;
@@ -77,12 +80,6 @@ export class SettingsPage implements OnInit {
       description: 'Texto 30% más grande para baja visión.',
     },
   ];
-
-  constructor(
-    private alertController: AlertController,
-    private overlayWidget: OverlayWidgetService,
-    private preferences: UserPreferencesService,
-  ) {}
 
   async ngOnInit(): Promise<void> {
     this.widgetEnabled = await this.overlayWidget.getStoredState();
