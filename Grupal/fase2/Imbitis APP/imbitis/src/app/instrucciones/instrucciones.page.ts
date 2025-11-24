@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+﻿import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, SearchbarCustomEvent, SegmentCustomEvent, createGesture, Gesture } from '@ionic/angular';
@@ -13,6 +13,7 @@ import { VoiceActivationState, VoiceCommandService } from '../core/voice-command
 import { InstructionOfflineService } from './instruction-offline.service';
 
 type FeedbackChoice = 'like' | 'dislike';
+type CategoryFilter = 'all' | 'favorites' | 'offline';
 
 @Component({
   selector: 'app-instrucciones',
@@ -28,6 +29,12 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   offlineCategoryIds = new Set<number>();
   offlineBannerMessage = '';
   offlineActionMessage = '';
+  categoryFilter: CategoryFilter = 'all';
+  readonly categoryFilterOptions: Array<{ value: CategoryFilter; label: string; icon: string }> = [
+    { value: 'all', label: 'Todo', icon: 'sparkles-outline' },
+    { value: 'favorites', label: 'Favoritos', icon: 'star-outline' },
+    { value: 'offline', label: 'Descargados', icon: 'cloud-offline-outline' },
+  ];
 
   subCategoryModalOpen = false;
   subCategoryPath: InstructionCategory[] = [];
@@ -62,6 +69,29 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   completedCategoryId: number | null = null;
   voiceStatus: VoiceActivationState = 'unavailable';
   voiceStatusMessage = '';
+  searchQuery = '';
+
+  get totalCategories(): number {
+    return this.categories.length;
+  }
+
+  get favoritesCount(): number {
+    return this.favoriteCategoryIds.size;
+  }
+
+  get offlineCount(): number {
+    return this.offlineCategoryIds.size;
+  }
+
+  get heroDescription(): string {
+    if (this.isLoading) {
+      return 'Reuniendo instrucciones esenciales...';
+    }
+    if (this.filteredCategories.length) {
+      return 'Explora protocolos guiados y marca tus favoritos para accederlos rápido.';
+    }
+    return 'Aún no hay instrucciones disponibles, intenta sincronizar nuevamente.';
+  }
 
   private audio: HTMLAudioElement | null = null;
   private autoReplayTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -71,9 +101,10 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   private offlineActionTimeout: ReturnType<typeof setTimeout> | null = null;
   private stepSwipeGesture?: Gesture;
   private stepContentElement?: HTMLElement | null;
-  private searchQuery = '';
   private categoryOrder = new Map<number, number>();
   private categoryRiskScore = new Map<number, number>();
+  private readonly highRiskDangerLevel = 4;
+  private readonly mediumRiskDangerLevel = 2;
   private readonly handleVoiceAdvance = (): void => {
     const category = this.selectedCategory;
     if (!category) {
@@ -150,6 +181,15 @@ export class InstruccionesPage implements OnInit, OnDestroy {
       : null;
   }
 
+  get stepProgressPercentage(): number {
+    const total = this.selectedCategory?.steps.length ?? 0;
+    if (!total) {
+      return 0;
+    }
+    const progress = ((this.currentStepIndex + 1) / total) * 100;
+    return Math.min(100, Math.max(0, progress));
+  }
+
   async loadCategories(): Promise<void> {
     this.isLoading = true;
     this.loadError = '';
@@ -184,6 +224,23 @@ export class InstruccionesPage implements OnInit, OnDestroy {
   trackTag(_: number, tag: string): string {
     return tag;
   }
+
+  getStepsLabel(category: InstructionCategory): string {
+    const total = category.steps?.length ?? 0;
+    if (total <= 0) {
+      return 'Sin pasos';
+    }
+    return total === 1 ? '1 paso' : `${total} pasos`;
+  }
+
+  getSubcategoryLabel(category: InstructionCategory): string {
+    const total = category.children?.length ?? 0;
+    if (total <= 0) {
+      return 'Sin subcategorias';
+    }
+    return total === 1 ? '1 subcategoria' : `${total} subcategorias`;
+  }
+
 
   isOfflineAvailable(category: InstructionCategory | null): boolean {
     if (!category) {
@@ -227,6 +284,28 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     const query = (ev.detail?.value || '').toString().toLowerCase().trim();
     this.searchQuery = query;
     this.applyFilters();
+  }
+
+  onCategoryFilterChange(event: SegmentCustomEvent): void {
+    const value = (event.detail.value as CategoryFilter) ?? 'all';
+    if (this.categoryFilter === value) {
+      return;
+    }
+    this.categoryFilter = value;
+    this.applyFilters();
+  }
+
+  clearFilters(): void {
+    if (!this.searchQuery && this.categoryFilter === 'all') {
+      return;
+    }
+    this.searchQuery = '';
+    this.categoryFilter = 'all';
+    this.applyFilters();
+  }
+
+  isFilteringActive(): boolean {
+    return Boolean(this.searchQuery || this.categoryFilter !== 'all');
   }
 
   handleCategoryClick(item: InstructionCategory): void {
@@ -602,7 +681,19 @@ export class InstruccionesPage implements OnInit, OnDestroy {
     const list = this.searchQuery
       ? this.categories.filter(item => this.matchesQuery(item, this.searchQuery))
       : [...this.categories];
-    this.filteredCategories = this.sortCategories(list);
+    const filteredByChip = list.filter(item => this.matchesCategoryFilter(item));
+    this.filteredCategories = this.sortCategories(filteredByChip);
+  }
+
+  private matchesCategoryFilter(category: InstructionCategory): boolean {
+    switch (this.categoryFilter) {
+      case 'favorites':
+        return this.favoriteCategoryIds.has(category.id);
+      case 'offline':
+        return this.offlineCategoryIds.has(category.id);
+      default:
+        return true;
+    }
   }
 
   private sortCategories(items: InstructionCategory[] = []): InstructionCategory[] {
@@ -682,4 +773,46 @@ export class InstruccionesPage implements OnInit, OnDestroy {
       // ignore update failures silently to avoid bloquear feedback
     }
   }
+
+  getVoiceStatusCopy(): string {
+    if (this.voiceStatusMessage) {
+      return this.voiceStatusMessage;
+    }
+    switch (this.voiceStatus) {
+      case 'listening':
+        return 'Di "LISTO" para continuar';
+      case 'no-permission':
+        return 'Permite el micr�fono para usar la voz';
+      case 'error':
+        return 'No se pudo activar el micr�fono';
+      default:
+        return 'Activa los comandos de voz en ajustes';
+    }
+  }
+
+  getVoiceStatusIcon(): string {
+    switch (this.voiceStatus) {
+      case 'listening':
+        return 'mic-outline';
+      case 'no-permission':
+        return 'alert-circle-outline';
+      case 'error':
+        return 'mic-off-outline';
+      default:
+        return 'remove-circle-outline';
+    }
+  }
+  getVoiceStatusClass(): string {
+    switch (this.voiceStatus) {
+      case 'listening':
+        return 'tone-success';
+      case 'no-permission':
+        return 'tone-warning';
+      case 'error':
+        return 'tone-danger';
+      default:
+        return 'tone-muted';
+    }
+  }
+
 }

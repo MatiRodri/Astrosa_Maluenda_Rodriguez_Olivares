@@ -7,6 +7,8 @@ export interface InstructionStep {
   text: string;
   imageUrl?: string;
   audioUrl?: string;
+  localImageSrc?: string;
+  localAudioSrc?: string;
 }
 
 export interface InstructionCategory {
@@ -234,19 +236,15 @@ export class InstructionsService {
   async incrementCategoryViewCount(categoryId: number, currentValue = 0): Promise<number> {
     const client = this.supabase.getClient();
     const nextValue = Math.max(0, currentValue) + 1;
-    const { data, error } = await client
-      .from('categories')
-      .update({ contador_vistas: nextValue })
-      .eq('CategoryID', categoryId)
-      .select('contador_vistas')
-      .single();
+    const { error } = await client.rpc('incrementar_vista', {
+      category_id_to_update: categoryId,
+    });
 
     if (error) {
       throw new Error(error.message || 'No fue posible actualizar el contador de visitas.');
     }
 
-    const storedValue = this.resolveNumericValue(data?.contador_vistas ?? nextValue);
-    return storedValue || nextValue;
+    return nextValue;
   }
 
   private resolveNumericValue(value: unknown): number {

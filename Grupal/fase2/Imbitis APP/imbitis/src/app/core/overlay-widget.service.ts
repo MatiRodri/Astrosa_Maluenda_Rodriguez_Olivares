@@ -14,6 +14,7 @@ interface OverlayWidgetPlugin {
   getState(options?: Record<string, unknown>): Promise<WidgetState>;
   hasPermission(options?: Record<string, unknown>): Promise<PermissionResult>;
   requestPermission(options?: Record<string, unknown>): Promise<PermissionResult>;
+  setAppState(options: { active: boolean }): Promise<void>;
 }
 
 const OverlayWidget = registerPlugin<OverlayWidgetPlugin>('OverlayWidget');
@@ -130,6 +131,17 @@ export class OverlayWidgetService {
       return await OverlayWidget.requestPermission();
     } catch {
       return { granted: false };
+    }
+  }
+
+  async notifyAppState(active: boolean): Promise<void> {
+    if (!this.isAndroidNative()) {
+      return;
+    }
+    try {
+      await OverlayWidget.setAppState({ active });
+    } catch {
+      /* ignore */
     }
   }
 }

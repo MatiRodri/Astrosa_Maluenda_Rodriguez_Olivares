@@ -9,6 +9,8 @@ export type ColorProfile =
   | 'tritanomaly'
   | 'achromatopsia';
 
+export type FontScale = 'normal' | 'large' | 'xlarge';
+
 type ThemeVariables = Record<string, string>;
 
 const COLOR_PROFILES: Record<ColorProfile, ThemeVariables> = {
@@ -344,18 +346,31 @@ const COLOR_PROFILES: Record<ColorProfile, ThemeVariables> = {
   },
 };
 
+const FONT_SCALE_VALUES: Record<FontScale, number> = {
+  normal: 1,
+  large: 1.15,
+  xlarge: 1.3,
+};
+
 @Injectable({ providedIn: 'root' })
 export class UserPreferencesService {
   private readonly autoPlayKey = 'instructionsAutoPlayEnabled';
   private readonly colorProfileKey = 'colorProfile';
+  private readonly voiceCommandsKey = 'voiceCommandsEnabled';
+  private readonly fontScaleKey = 'fontScalePreference';
   private readonly autoPlaySubject = new BehaviorSubject<boolean>(this.loadAutoPlayPreference());
   private readonly colorProfileSubject = new BehaviorSubject<ColorProfile>(this.loadColorProfile());
+  private readonly voiceCommandsSubject = new BehaviorSubject<boolean>(this.loadVoiceCommandsPreference());
+  private readonly fontScaleSubject = new BehaviorSubject<FontScale>(this.loadFontScale());
 
   readonly autoPlayEnabled$ = this.autoPlaySubject.asObservable();
   readonly colorProfile$ = this.colorProfileSubject.asObservable();
+  readonly voiceCommandsEnabled$ = this.voiceCommandsSubject.asObservable();
+  readonly fontScale$ = this.fontScaleSubject.asObservable();
 
   constructor(@Inject(DOCUMENT) private readonly documentRef: Document | null) {
     this.applyColorProfile(this.colorProfileSubject.value);
+    this.applyFontScale(this.fontScaleSubject.value);
   }
 
   isAutoPlayEnabled(): boolean {
@@ -365,6 +380,15 @@ export class UserPreferencesService {
   setAutoPlayEnabled(enabled: boolean): void {
     this.persistAutoPlay(enabled);
     this.autoPlaySubject.next(enabled);
+  }
+
+  isVoiceCommandsEnabled(): boolean {
+    return this.voiceCommandsSubject.value;
+  }
+
+  setVoiceCommandsEnabled(enabled: boolean): void {
+    this.persistVoiceCommands(enabled);
+    this.voiceCommandsSubject.next(enabled);
   }
 
   getColorProfile(): ColorProfile {
@@ -382,6 +406,23 @@ export class UserPreferencesService {
 
   applyStoredColorProfile(): void {
     this.applyColorProfile(this.colorProfileSubject.value);
+  }
+
+  getFontScale(): FontScale {
+    return this.fontScaleSubject.value;
+  }
+
+  setFontScale(scale: FontScale): void {
+    if (!FONT_SCALE_VALUES[scale]) {
+      return;
+    }
+    this.persistFontScale(scale);
+    this.fontScaleSubject.next(scale);
+    this.applyFontScale(scale);
+  }
+
+  applyStoredFontScale(): void {
+    this.applyFontScale(this.fontScaleSubject.value);
   }
 
   private loadAutoPlayPreference(): boolean {
@@ -408,6 +449,30 @@ export class UserPreferencesService {
     return 'normal';
   }
 
+  private loadVoiceCommandsPreference(): boolean {
+    try {
+      const stored = localStorage.getItem(this.voiceCommandsKey);
+      if (stored !== null) {
+        return stored === 'true';
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+
+  private loadFontScale(): FontScale {
+    try {
+      const stored = localStorage.getItem(this.fontScaleKey) as FontScale | null;
+      if (stored && stored in FONT_SCALE_VALUES) {
+        return stored;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'normal';
+  }
+
   private persistAutoPlay(enabled: boolean): void {
     try {
       localStorage.setItem(this.autoPlayKey, enabled ? 'true' : 'false');
@@ -419,6 +484,22 @@ export class UserPreferencesService {
   private persistColorProfile(profile: ColorProfile): void {
     try {
       localStorage.setItem(this.colorProfileKey, profile);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private persistVoiceCommands(enabled: boolean): void {
+    try {
+      localStorage.setItem(this.voiceCommandsKey, enabled ? 'true' : 'false');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private persistFontScale(scale: FontScale): void {
+    try {
+      localStorage.setItem(this.fontScaleKey, scale);
     } catch {
       /* ignore */
     }
@@ -437,5 +518,19 @@ export class UserPreferencesService {
     Object.entries(theme).forEach(([key, value]) => {
       target.style.setProperty(key, value);
     });
+  }
+
+  private applyFontScale(scale: FontScale): void {
+    if (!this.documentRef?.documentElement) {
+      return;
+    }
+    const multiplier = FONT_SCALE_VALUES[scale] ?? 1;
+    const target = this.documentRef.documentElement;
+    target.dataset['fontScale'] = scale;
+    if (this.documentRef.body) {
+      this.documentRef.body.dataset['fontScale'] = scale;
+    }
+    target.style.setProperty('--app-font-scale', multiplier.toString());
+    target.style.setProperty('font-size', `${Math.round(multiplier * 100)}%`);
   }
 }

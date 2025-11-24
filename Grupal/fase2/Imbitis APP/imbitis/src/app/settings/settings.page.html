@@ -1,39 +1,110 @@
-<ion-header [translucent]="true">
+<ion-header [translucent]="true" class="settings-header">
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button text="Volver" defaultHref="/home"></ion-back-button>
+      <ion-back-button defaultHref="/home"></ion-back-button>
     </ion-buttons>
     <ion-title>Ajustes</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-list inset class="settings-card">
-    <ion-item>
-      <ion-label>Habilitar widget de la aplicacion</ion-label>
-      <ion-toggle slot="end" [checked]="widgetEnabled" (ionChange)="onWidgetToggle($event)"></ion-toggle>
-    </ion-item>
-    <ion-item>
-      <ion-label>Reproduccion automatica de audio</ion-label>
-      <ion-toggle slot="end" [checked]="autoPlayEnabled" (ionChange)="onAutoPlayToggle($event)"></ion-toggle>
-    </ion-item>
-    <ion-list-header>
-      <ion-label>
-        Esquema de colores
-        <p>Selecciona la paleta que mejor se adapta a tus necesidades visuales.</p>
-      </ion-label>
-    </ion-list-header>
-    <ion-radio-group [value]="selectedColorProfile" (ionChange)="onColorProfileChange($event)">
-      <ion-item *ngFor="let profile of colorProfiles">
-        <ion-radio slot="start" [value]="profile.id"></ion-radio>
-        <ion-label>
-          {{ profile.label }}
-          <p>{{ profile.description }}</p>
-          <div class="palette-preview" aria-hidden="true">
-            <span *ngFor="let color of profile.preview" class="swatch" [style.background]="color"></span>
+<ion-content [fullscreen]="true" class="settings-page">
+  <section class="settings-hero">
+    <div class="hero-text">
+      <p class="eyebrow">Preferencias personales</p>
+      <h1>Ajusta tu experiencia</h1>
+      <p>
+        Personaliza accesos rápidos, comandos de voz y la paleta de colores para que cada emergencia
+        se atienda con mayor claridad.
+      </p>
+      <div class="hero-tags">
+        <span class="pill">Widget</span>
+        <span class="pill">Audio</span>
+        <span class="pill">Accesibilidad</span>
+      </div>
+    </div>
+    <div class="hero-illustration" aria-hidden="true">
+      <div class="glow"></div>
+      <ion-icon name="settings-outline"></ion-icon>
+    </div>
+  </section>
+
+  <section class="settings-grid">
+    <article class="settings-card toggle-card">
+      <h2>Automatizaciones</h2>
+      <p>Activa los módulos inteligentes que te ayudan durante una emergencia.</p>
+      <ul>
+        <li>
+          <div>
+            <strong>Widget de asistencia</strong>
+            <span>Acceso flotante con los pasos más críticos.</span>
           </div>
-        </ion-label>
-      </ion-item>
-    </ion-radio-group>
-  </ion-list>
+          <ion-toggle slot="end" [checked]="widgetEnabled" (ionChange)="onWidgetToggle($event)"></ion-toggle>
+        </li>
+        <li>
+          <div>
+            <strong>Reproducción automática</strong>
+            <span>Lector de voz para cada paso sin tocar el dispositivo.</span>
+          </div>
+          <ion-toggle slot="end" [checked]="autoPlayEnabled" (ionChange)="onAutoPlayToggle($event)"></ion-toggle>
+        </li>
+        <li>
+          <div>
+            <strong>Comandos “LISTO”</strong>
+            <span>Avanza entre pasos usando tu voz.</span>
+          </div>
+          <ion-toggle
+            slot="end"
+            [checked]="voiceCommandsEnabled"
+            (ionChange)="onVoiceCommandsToggle($event)"
+          ></ion-toggle>
+        </li>
+      </ul>
+    </article>
+
+    <article class="settings-card accessibility-card">
+      <div class="accessibility-header">
+        <div>
+          <h2>Accesibilidad</h2>
+          <p>Mejora la legibilidad con texto más grande en toda la app.</p>
+        </div>
+        <div class="profile-pill scale-pill">
+          <ion-icon name="text-outline"></ion-icon>
+          {{ currentFontScaleLabel }}
+        </div>
+      </div>
+      <ion-segment mode="md" [value]="fontScale" (ionChange)="onFontScaleChange($event)">
+        <ion-segment-button *ngFor="let option of fontScaleOptions" [value]="option.id">
+          <ion-label>
+            <strong>{{ option.label }}</strong>
+            <p>{{ option.description }}</p>
+          </ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </article>
+
+    <article class="settings-card palette-card">
+      <div class="palette-header">
+        <div>
+          <h2>Esquema de colores</h2>
+          <p>Selecciona la paleta que mejor acompaña tu visión.</p>
+        </div>
+        <div class="profile-pill">
+          <ion-icon name="color-palette-outline"></ion-icon>
+          Perfil: {{ selectedColorProfile | titlecase }}
+        </div>
+      </div>
+      <ion-radio-group [value]="selectedColorProfile" (ionChange)="onColorProfileChange($event)">
+        <ion-item *ngFor="let profile of colorProfiles" class="palette-option">
+          <ion-radio slot="start" [value]="profile.id"></ion-radio>
+          <ion-label>
+            <strong>{{ profile.label }}</strong>
+            <p>{{ profile.description }}</p>
+            <div class="palette-preview" aria-hidden="true">
+              <span *ngFor="let color of profile.preview" class="swatch" [style.background]="color"></span>
+            </div>
+          </ion-label>
+        </ion-item>
+      </ion-radio-group>
+    </article>
+  </section>
 </ion-content>

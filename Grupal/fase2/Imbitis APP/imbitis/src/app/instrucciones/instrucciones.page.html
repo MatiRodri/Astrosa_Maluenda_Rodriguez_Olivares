@@ -1,111 +1,140 @@
-<ion-header [translucent]="true">
+<ion-header [translucent]="true" class="instructions-header">
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button text="Volver" defaultHref="/home"></ion-back-button>
+      <ion-back-button text="" defaultHref="/home"></ion-back-button>
     </ion-buttons>
-    <ion-title>Instrucciones</ion-title>
+    <ion-title>
+      <div class="toolbar-title">
+        <div class="title-icon" aria-hidden="true">
+          <ion-icon name="medkit-outline"></ion-icon>
+        </div>
+        <div class="title-copy">
+          <p>Centro visual</p>
+          <strong>Instrucciones</strong>
+        </div>
+        <div class="title-metrics" aria-label="Estado de tus guías">
+          <span class="metric-chip">
+            <ion-icon name="layers-outline"></ion-icon>
+            {{ totalCategories }} guías
+          </span>
+          <span class="metric-chip" *ngIf="favoritesCount">
+            <ion-icon name="star"></ion-icon>
+            {{ favoritesCount }} favs
+          </span>
+          <span class="metric-chip" *ngIf="offlineCount">
+            <ion-icon name="cloud-download-outline"></ion-icon>
+            {{ offlineCount }} offline
+          </span>
+        </div>
+      </div>
+    </ion-title>
     <ion-buttons slot="end">
-      <ion-button
-        class="emergency-button"
-        fill="solid"
-        color="danger"
-        (click)="callEmergency()"
-        aria-label="Llamar a emergencia"
-      >
+      <ion-button class="emergency-button" fill="solid" color="danger" (click)="callEmergency()" aria-label="Llamar a emergencia">
         <ion-icon name="call-outline"></ion-icon>
       </ion-button>
-      <ion-button
-        class="settings-button"
-        fill="clear"
-        (click)="openSettings()"
-        aria-label="Abrir ajustes"
-      >
+      <ion-button class="settings-button" fill="clear" (click)="openSettings()" aria-label="Abrir ajustes">
         <ion-icon slot="icon-only" name="settings-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
+<ion-content [fullscreen]="true" class="instructions-page">
   <ion-header collapse="condense">
     <ion-toolbar>
       <ion-title size="large">Instrucciones</ion-title>
     </ion-toolbar>
   </ion-header>
 
-  <div class="instructions-search">
-    <ion-searchbar
-      placeholder="Buscar"
-      debounce="150"
-      (ionInput)="onSearchChange($event)"
-      [disabled]="isLoading || !!loadError"
-    ></ion-searchbar>
-  </div>
-
-  <div class="offline-banner" *ngIf="offlineBannerMessage">
-    <ion-icon name="cloud-offline-outline"></ion-icon>
-    <span>{{ offlineBannerMessage }}</span>
-  </div>
-
-  <div class="offline-banner info" *ngIf="offlineActionMessage">
-    <ion-icon name="cloud-download-outline"></ion-icon>
-    <span>{{ offlineActionMessage }}</span>
-  </div>
-
-  <ng-container *ngIf="isLoading; else contentState">
-    <div class="state-wrapper">
-      <ion-spinner name="crescent"></ion-spinner>
-      <p>Cargando instrucciones...</p>
+  <div class="page-shell">
+    <div class="instructions-search">
+      <ion-searchbar placeholder="Buscar protocolos o síntomas" debounce="120" [value]="searchQuery" (ionInput)="onSearchChange($event)" [disabled]="isLoading || !!loadError"></ion-searchbar>
     </div>
-  </ng-container>
 
-  <ng-template #contentState>
+    <section class="filters-panel surface-card">
+      <div class="filters-header">
+        <div>
+          <p class="filters-eyebrow">Organiza la información</p>
+          <h2>Filtros inteligentes</h2>
+        </div>
+        <div class="results-indicator">
+          <span>{{ filteredCategories.length }} resultados</span>
+          <ion-button fill="clear" size="small" (click)="clearFilters()" *ngIf="isFilteringActive()">
+            <ion-icon slot="start" name="close-circle-outline"></ion-icon>
+            Limpiar
+          </ion-button>
+        </div>
+      </div>
+      <ion-segment mode="md" [value]="categoryFilter" (ionChange)="onCategoryFilterChange($event)">
+        <ion-segment-button *ngFor="let option of categoryFilterOptions" [value]="option.value">
+          <ion-icon [name]="option.icon"></ion-icon>
+          <ion-label>{{ option.label }}</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </section>
+
+    <div class="offline-banner" *ngIf="offlineBannerMessage">
+      <ion-icon name="cloud-offline-outline"></ion-icon>
+      <span>{{ offlineBannerMessage }}</span>
+    </div>
+
+    <div class="offline-banner info" *ngIf="offlineActionMessage">
+      <ion-icon name="cloud-download-outline"></ion-icon>
+      <span>{{ offlineActionMessage }}</span>
+    </div>
+
+    <ng-container *ngIf="isLoading; else gridContent">
+      <div class="state-wrapper">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Cargando instrucciones...</p>
+      </div>
+    </ng-container>
+  </div>
+
+  <ng-template #gridContent>
     <ng-container *ngIf="!loadError; else errorState">
       <ng-container *ngIf="filteredCategories.length; else emptyState">
         <div class="instruction-wrapper">
           <div class="instruction-grid">
-            <div
-              class="instruction-card"
-              *ngFor="let item of filteredCategories; trackBy: trackCategory"
-              (click)="handleCategoryClick(item)"
-              [class.card-active]="activeCardId === item.id"
-            >
-              <button
-                type="button"
-                class="download-toggle"
-                [class.download-active]="isOfflineAvailable(item)"
-                (click)="toggleOfflineCategory(item, $event)"
-                [attr.aria-label]="
-                  isOfflineAvailable(item)
-                    ? 'Quitar descarga sin conexion'
-                    : 'Descargar paso a paso'
-                "
-              >
-                <ion-icon
-                  [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"
-                ></ion-icon>
-              </button>
-              <button
-                type="button"
-                class="favorite-toggle"
-                [class.favorite-active]="isFavorite(item)"
-                (click)="toggleFavorite(item, $event)"
-                [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'"
-              >
-                <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
-              </button>
-              <div class="photo-frame" *ngIf="item.iconUrl; else placeholderIcon">
-                <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
+            <div class="instruction-card" *ngFor="let item of filteredCategories; trackBy: trackCategory" (click)="handleCategoryClick(item)" [class.card-active]="activeCardId === item.id">
+              <div class="card-actions">
+                <button type="button" class="download-toggle" [class.download-active]="isOfflineAvailable(item)" (click)="toggleOfflineCategory(item, $event)" [attr.aria-label]="
+                    isOfflineAvailable(item)
+                      ? 'Quitar descarga sin conexion'
+                      : 'Descargar paso a paso'
+                  ">
+                  <ion-icon [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"></ion-icon>
+                </button>
+                <button type="button" class="favorite-toggle" [class.favorite-active]="isFavorite(item)" (click)="toggleFavorite(item, $event)" [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'">
+                  <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
+                </button>
               </div>
-              <ng-template #placeholderIcon>
-                <div class="photo-placeholder">
-                  <ion-icon name="medical-outline"></ion-icon>
+              <div class="card-body">
+                <div class="photo-frame" *ngIf="item.iconUrl; else placeholderIcon">
+                  <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
                 </div>
-              </ng-template>
-              <span class="instruction-text">{{ item.name | uppercase }}</span>
-              <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
-              <div class="instruction-tags" *ngIf="item.tags?.length">
-                <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+                <ng-template #placeholderIcon>
+                  <div class="photo-placeholder">
+                    <ion-icon name="medical-outline"></ion-icon>
+                  </div>
+                </ng-template>
+                <div class="card-text">
+                  <span class="instruction-text">{{ item.name }}</span>
+                  <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+                  <div class="instruction-tags" *ngIf="item.tags?.length">
+                    <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card-footer">
+                <div class="step-pill">
+                  <ion-icon name="walk-outline"></ion-icon>
+                  {{ getStepsLabel(item) }}
+                </div>
+                <div class="step-pill" *ngIf="item.children?.length">
+                  <ion-icon name="layers-outline"></ion-icon>
+                  {{ getSubcategoryLabel(item) }}
+                </div>
               </div>
             </div>
           </div>
@@ -114,7 +143,7 @@
     </ng-container>
   </ng-template>
 
-  <ng-template #errorState>
+</ion-content><ng-template #errorState>
     <div class="state-wrapper state-error">
       <ion-icon name="warning-outline"></ion-icon>
       <p>{{ loadError }}</p>
@@ -154,42 +183,58 @@
                 *ngFor="let item of visibleSubcategories; trackBy: trackCategory"
                 (click)="handleSubcategoryClick(item)"
               >
-                <button
-                  type="button"
-                  class="download-toggle"
-                  [class.download-active]="isOfflineAvailable(item)"
-                  (click)="toggleOfflineCategory(item, $event)"
-                  [attr.aria-label]="
-                    isOfflineAvailable(item)
-                      ? 'Quitar descarga sin conexion'
-                      : 'Descargar paso a paso'
-                  "
-                >
-                  <ion-icon
-                    [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"
-                  ></ion-icon>
-                </button>
-                <button
-                  type="button"
-                  class="favorite-toggle"
-                  [class.favorite-active]="isFavorite(item)"
-                  (click)="toggleFavorite(item, $event)"
-                  [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'"
-                >
-                  <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
-                </button>
-                <div class="photo-frame" *ngIf="item.iconUrl; else subPlaceholderIcon">
-                  <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
+                <div class="card-actions">
+                  <button
+                    type="button"
+                    class="download-toggle"
+                    [class.download-active]="isOfflineAvailable(item)"
+                    (click)="toggleOfflineCategory(item, $event)"
+                    [attr.aria-label]="
+                      isOfflineAvailable(item)
+                        ? 'Quitar descarga sin conexion'
+                        : 'Descargar paso a paso'
+                    "
+                  >
+                    <ion-icon
+                      [name]="isOfflineAvailable(item) ? 'cloud-done-outline' : 'cloud-download-outline'"
+                    ></ion-icon>
+                  </button>
+                  <button
+                    type="button"
+                    class="favorite-toggle"
+                    [class.favorite-active]="isFavorite(item)"
+                    (click)="toggleFavorite(item, $event)"
+                    [attr.aria-label]="isFavorite(item) ? 'Quitar de favoritos' : 'Marcar como favorito'"
+                  >
+                    <ion-icon [name]="isFavorite(item) ? 'star' : 'star-outline'"></ion-icon>
+                  </button>
                 </div>
-                <ng-template #subPlaceholderIcon>
-                  <div class="photo-placeholder">
-                    <ion-icon name="medical-outline"></ion-icon>
+                <div class="card-body">
+                  <div class="photo-frame" *ngIf="item.iconUrl; else subPlaceholderIcon">
+                    <img class="instruction-photo" [src]="item.iconUrl" [alt]="item.name" loading="lazy" />
                   </div>
-                </ng-template>
-                <span class="instruction-text">{{ item.name | uppercase }}</span>
-                <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
-                <div class="instruction-tags" *ngIf="item.tags?.length">
-                  <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+                  <ng-template #subPlaceholderIcon>
+                    <div class="photo-placeholder">
+                      <ion-icon name="medical-outline"></ion-icon>
+                    </div>
+                  </ng-template>
+                  <div class="card-text">
+                    <span class="instruction-text">{{ item.name }}</span>
+                    <p class="instruction-description" *ngIf="item.description">{{ item.description }}</p>
+                    <div class="instruction-tags" *ngIf="item.tags?.length">
+                      <span class="tag-pill" *ngFor="let tag of item.tags; trackBy: trackTag">{{ tag }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <div class="step-pill">
+                    <ion-icon name="walk-outline"></ion-icon>
+                    {{ getStepsLabel(item) }}
+                  </div>
+                  <div class="step-pill" *ngIf="item.children?.length">
+                    <ion-icon name="layers-outline"></ion-icon>
+                    {{ getSubcategoryLabel(item) }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -236,6 +281,9 @@
             <div class="step-content" #stepContent>
               <div class="step-counter">
                 Paso {{ currentStepIndex + 1 }} de {{ selectedCategory?.steps?.length || 0 }}
+              </div>
+              <div class="progress-track" *ngIf="selectedCategory?.steps?.length">
+                <div class="progress-fill" [style.width.%]="stepProgressPercentage"></div>
               </div>
 
               <div class="voice-indicator" *ngIf="voiceStatus !== 'unavailable' || voiceStatusMessage">
@@ -405,6 +453,5 @@
       </div>
     </ng-template>
   </ion-modal>
-</ion-content>
 
 

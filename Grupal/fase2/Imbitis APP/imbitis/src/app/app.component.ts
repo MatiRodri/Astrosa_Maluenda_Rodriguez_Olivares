@@ -1,4 +1,6 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { App } from '@capacitor/app';
+import type { PluginListenerHandle } from '@capacitor/core';
 import { AlertController, ToastController } from '@ionic/angular';
 import { OverlayWidgetService } from './core/overlay-widget.service';
 import { UserPreferencesService } from './core/user-preferences.service';
@@ -9,7 +11,8 @@ import { UserPreferencesService } from './core/user-preferences.service';
   styleUrls: ['app.component.scss'],
   standalone: false,
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  private appStateListener?: PluginListenerHandle;
   constructor(
     private alertController: AlertController,
     private toastController: ToastController,
@@ -20,6 +23,11 @@ export class AppComponent implements OnInit {
   async ngOnInit() {
     // Asegura que las preferencias visuales se apliquen al iniciar la app.
     this.preferences.applyStoredColorProfile();
+    this.preferences.applyStoredFontScale();
+    await this.overlayWidget.notifyAppState(true);
+    this.appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
+      void this.overlayWidget.notifyAppState(isActive);
+    });
     try {
       const asked = localStorage.getItem('hasAskedWidget');
       if (!asked) {
@@ -67,4 +75,10 @@ export class AppComponent implements OnInit {
     });
     await toast.present();
   }
+
+  async ngOnDestroy(): Promise<void> {
+    await this.appStateListener?.remove();
+    this.appStateListener = undefined;
+  }
 }
+

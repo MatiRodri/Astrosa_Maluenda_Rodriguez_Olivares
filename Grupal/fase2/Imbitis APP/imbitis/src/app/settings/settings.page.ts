@@ -3,6 +3,7 @@ import { AlertController } from '@ionic/angular';
 import { OverlayWidgetService } from '../core/overlay-widget.service';
 import {
   ColorProfile,
+  FontScale,
   UserPreferencesService,
 } from '../core/user-preferences.service';
 
@@ -15,7 +16,9 @@ import {
 export class SettingsPage implements OnInit {
   widgetEnabled = false;
   autoPlayEnabled = true;
+  voiceCommandsEnabled = true;
   selectedColorProfile: ColorProfile = 'normal';
+  fontScale: FontScale = 'normal';
   readonly colorProfiles: Array<{
     id: ColorProfile;
     label: string;
@@ -53,6 +56,27 @@ export class SettingsPage implements OnInit {
       preview: ['#4b5563', '#6b7280', '#9ca3af'],
     },
   ];
+  readonly fontScaleOptions: Array<{
+    id: FontScale;
+    label: string;
+    description: string;
+  }> = [
+    {
+      id: 'normal',
+      label: 'Estándar',
+      description: 'Tamaño predeterminado para mantener la interfaz compacta.',
+    },
+    {
+      id: 'large',
+      label: 'Grande',
+      description: 'Incrementa la tipografía un 15% para mejorar la lectura.',
+    },
+    {
+      id: 'xlarge',
+      label: 'Extra grande',
+      description: 'Texto 30% más grande para baja visión.',
+    },
+  ];
 
   constructor(
     private alertController: AlertController,
@@ -63,7 +87,9 @@ export class SettingsPage implements OnInit {
   async ngOnInit(): Promise<void> {
     this.widgetEnabled = await this.overlayWidget.getStoredState();
     this.autoPlayEnabled = this.preferences.isAutoPlayEnabled();
+    this.voiceCommandsEnabled = this.preferences.isVoiceCommandsEnabled();
     this.selectedColorProfile = this.preferences.getColorProfile();
+    this.fontScale = this.preferences.getFontScale();
   }
 
   async onWidgetToggle(event: CustomEvent): Promise<void> {
@@ -89,6 +115,12 @@ export class SettingsPage implements OnInit {
     this.autoPlayEnabled = enabled;
   }
 
+  onVoiceCommandsToggle(event: CustomEvent): void {
+    const enabled = !!event?.detail?.checked;
+    this.preferences.setVoiceCommandsEnabled(enabled);
+    this.voiceCommandsEnabled = enabled;
+  }
+
   onColorProfileChange(event: CustomEvent): void {
     const profile = event?.detail?.value as ColorProfile | undefined;
     if (!profile || profile === this.selectedColorProfile) {
@@ -96,6 +128,19 @@ export class SettingsPage implements OnInit {
     }
     this.preferences.setColorProfile(profile);
     this.selectedColorProfile = profile;
+  }
+
+  onFontScaleChange(event: CustomEvent): void {
+    const scale = event?.detail?.value as FontScale | undefined;
+    if (!scale || scale === this.fontScale) {
+      return;
+    }
+    this.preferences.setFontScale(scale);
+    this.fontScale = scale;
+  }
+
+  get currentFontScaleLabel(): string {
+    return this.fontScaleOptions.find(option => option.id === this.fontScale)?.label ?? 'Estándar';
   }
 
   private async presentFailureAlert(): Promise<void> {

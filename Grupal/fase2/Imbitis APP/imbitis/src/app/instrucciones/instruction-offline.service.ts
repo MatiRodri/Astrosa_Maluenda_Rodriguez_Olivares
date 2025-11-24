@@ -11,23 +11,38 @@ interface OfflineCategoryRecord {
 @Injectable({ providedIn: 'root' })
 export class InstructionOfflineService {
   private readonly storageKey = 'offlineInstructionCategories';
+  private readonly dbName = 'imbitis-offline';
+  private readonly dbStoreName = 'instruction-records';
   private readonly storage: Storage | null = this.resolveStorage();
-  private readonly recordsSubject = new BehaviorSubject<OfflineCategoryRecord[]>(this.loadRecords());
+  private readonly recordsSubject = new BehaviorSubject<OfflineCategoryRecord[]>([]);
+  private readonly ready: Promise<void>;
+  private dbPromise: Promise<IDBDatabase | null> | null = null;
+  private readonly assetCache = new Map<string, string>();
 
   readonly records$ = this.recordsSubject.asObservable();
 
-  saveCategory(category: InstructionCategory): void {
-    const copy = this.cloneCategory(category);
-    const nextRecords = this.recordsSubject.value.filter(record => record.id !== category.id);
-    nextRecords.push({ id: category.id, downloadedAt: Date.now(), category: copy });
-    this.persistRecords(nextRecords);
-    this.recordsSubject.next(nextRecords);
+  constructor() {
+    this.ready = this.initializeRecords();
   }
 
-  removeCategory(categoryId: number): void {
-    const nextRecords = this.recordsSubject.value.filter(record => record.id !== categoryId);
-    this.persistRecords(nextRecords);
+  async whenReady(): Promise<void> {
+    await this.ready;
+  }
+
+  async saveCategory(category: InstructionCategory): Promise<void> {
+    await this.whenReady();
+    const copy = await this.cloneCategoryWithAssets(category);
+    const nextRecords = this.recordsSubject.value.filter(record => record.id !== category.id);
+    nextRecords.push({ id: category.id, downloadedAt: Date.now(), category: copy });
     this.recordsSubject.next(nextRecords);
+    await this.persistRecords(nextRecords);
+  }
+
+  async removeCategory(categoryId: number): Promise<void> {
+    await this.whenReady();
+    const nextRecords = this.recordsSubject.value.filter(record => record.id !== categoryId);
+    this.recordsSubject.next(nextRecords);
+    await this.persistRecords(nextRecords);
   }
 
   hasCategory(categoryId: number): boolean {
@@ -54,15 +69,21 @@ export class InstructionOfflineService {
     }
   }
 
-  private loadRecords(): OfflineCategoryRecord[] {
-    if (!this.storage) {
+  private async initializeRecords(): Promise<void> {
+    try {
+      const records = await this.loadRecords();
+      this.recordsSubject.next(records);
+    } catch {
+      this.recordsSubject.next([]);
+    }
+  }
+
+  private async loadRecords(): Promise<OfflineCategoryRecord[]> {
+    const stored = await this.readPersistedData();
+    if (!stored) {
       return [];
     }
     try {
-      const stored = this.storage.getItem(this.storageKey);
-      if (!stored) {
-        return [];
-      }
       const parsed = JSON.parse(stored);
       if (!Array.isArray(parsed)) {
         return [];
@@ -75,12 +96,100 @@ export class InstructionOfflineService {
     }
   }
 
-  private persistRecords(records: OfflineCategoryRecord[]): void {
+  private async readPersistedData(): Promise<string | null> {
+    const fromIndexedDb = await this.readFromIndexedDb();
+    if (typeof fromIndexedDb === 'string') {
+      return fromIndexedDb;
+    }
+    if (!this.storage) {
+      return null;
+    }
+    try {
+      const stored = this.storage.getItem(this.storageKey);
+      if (stored) {
+        await this.writeToIndexedDb(stored);
+        return stored;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async persistRecords(records: OfflineCategoryRecord[]): Promise<void> {
+    const serialized = JSON.stringify(records);
+    const stored = await this.writeToIndexedDb(serialized);
+    if (!stored) {
+      this.persistToLocalStorage(serialized);
+    }
+  }
+
+  private async getIndexedDb(): Promise<IDBDatabase | null> {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return null;
+    }
+    if (!this.dbPromise) {
+      this.dbPromise = new Promise<IDBDatabase | null>(resolve => {
+        const request = window.indexedDB.open(this.dbName, 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(this.dbStoreName)) {
+            db.createObjectStore(this.dbStoreName);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+        request.onblocked = () => resolve(null);
+      });
+    }
+    return this.dbPromise;
+  }
+
+  private async readFromIndexedDb(): Promise<string | null> {
+    try {
+      const db = await this.getIndexedDb();
+      if (!db) {
+        return null;
+      }
+      return await new Promise<string | null>(resolve => {
+        const tx = db.transaction([this.dbStoreName], 'readonly');
+        const store = tx.objectStore(this.dbStoreName);
+        const request = store.get(this.storageKey);
+        request.onsuccess = () => {
+          const value = request.result;
+          resolve(typeof value === 'string' ? value : null);
+        };
+        request.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private async writeToIndexedDb(serialized: string): Promise<boolean> {
+    try {
+      const db = await this.getIndexedDb();
+      if (!db) {
+        return false;
+      }
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction([this.dbStoreName], 'readwrite');
+        const store = tx.objectStore(this.dbStoreName);
+        const request = store.put(serialized, this.storageKey);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error ?? new Error('No se pudo guardar el registro.'));
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private persistToLocalStorage(serialized: string): void {
     if (!this.storage) {
       return;
     }
     try {
-      const serialized = JSON.stringify(records);
       this.storage.setItem(this.storageKey, serialized);
     } catch {
       // ignore quota/storage errors to avoid blocking the UI
@@ -155,6 +264,8 @@ export class InstructionOfflineService {
       text: typeof value.text === 'string' ? value.text : '',
       imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : undefined,
       audioUrl: typeof value.audioUrl === 'string' ? value.audioUrl : undefined,
+      localImageSrc: typeof value.localImageSrc === 'string' ? value.localImageSrc : undefined,
+      localAudioSrc: typeof value.localAudioSrc === 'string' ? value.localAudioSrc : undefined,
     };
   }
 
@@ -165,5 +276,68 @@ export class InstructionOfflineService {
       steps: category.steps.map(step => ({ ...step })),
       children: category.children.map(child => this.cloneCategory(child)),
     };
+  }
+
+  private async cloneCategoryWithAssets(category: InstructionCategory): Promise<InstructionCategory> {
+    const steps = await Promise.all(category.steps.map(step => this.cloneStepWithAssets(step)));
+    const children = await Promise.all(category.children.map(child => this.cloneCategoryWithAssets(child)));
+    return {
+      ...category,
+      tags: [...category.tags],
+      steps,
+      children,
+    };
+  }
+
+  private async cloneStepWithAssets(step: InstructionStep): Promise<InstructionStep> {
+    const [imageData, audioData] = await Promise.all([
+      this.downloadAsset(step.localImageSrc ?? step.imageUrl),
+      this.downloadAsset(step.localAudioSrc ?? step.audioUrl),
+    ]);
+
+    return {
+      ...step,
+      localImageSrc: imageData ?? step.localImageSrc,
+      localAudioSrc: audioData ?? step.localAudioSrc,
+    };
+  }
+
+  private async downloadAsset(source?: string): Promise<string | undefined> {
+    if (!source) {
+      return undefined;
+    }
+    if (source.startsWith('data:')) {
+      return source;
+    }
+    if (this.assetCache.has(source)) {
+      return this.assetCache.get(source);
+    }
+    try {
+      const response = await fetch(source);
+      if (!response?.ok) {
+        return undefined;
+      }
+      const blob = await response.blob();
+      const dataUrl = await this.blobToDataUrl(blob);
+      this.assetCache.set(source, dataUrl);
+      return dataUrl;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async blobToDataUrl(blob: Blob): Promise<string> {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('No fue posible leer el recurso.'));
+        }
+      };
+      reader.onerror = () => reject(reader.error ?? new Error('Error desconocido al leer el recurso.'));
+      reader.readAsDataURL(blob);
+    });
   }
 }

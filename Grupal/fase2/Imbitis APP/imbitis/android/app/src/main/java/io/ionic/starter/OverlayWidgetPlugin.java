@@ -17,6 +17,7 @@ import androidx.annotation.Nullable;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.concurrent.CountDownLatch;
@@ -31,37 +32,44 @@ public class OverlayWidgetPlugin extends Plugin {
   private static final String PREF_FILE = "ImbitisWidgetPrefs";
   private static final String KEY_WIDGET_ENABLED = "widgetEnabled";
 
+  private static final Object OVERLAY_LOCK = new Object();
+  private static WindowManager windowManager;
+  private static View overlayView;
+  private static WindowManager.LayoutParams overlayParams;
+  private static CountDownLatch overlayCreationLatch;
+
   private PluginCall pendingPermissionCall;
-  private WindowManager windowManager;
-  private View overlayView;
-  private WindowManager.LayoutParams overlayParams;
+  private boolean appInForeground = true;
+  private Context appContext;
 
   @Override
   public void load() {
     super.load();
-    if (isWidgetEnabled() && hasOverlayPermission()) {
-      boolean shown = showOverlay();
-      if (!shown) {
-        setWidgetPreference(false);
-      }
+    Context initialContext = getContext();
+    if (initialContext != null) {
+      appContext = initialContext.getApplicationContext();
+    } else if (getActivity() != null) {
+      appContext = getActivity().getApplicationContext();
     }
+    syncOverlayVisibility();
   }
 
+  @PluginMethod
   public void enable(PluginCall call) {
-    boolean success = false;
-    if (hasOverlayPermission()) {
-      success = showOverlay();
-    }
-    setWidgetPreference(success);
+    boolean enabled = hasOverlayPermission();
+    setWidgetPreference(enabled);
+    syncOverlayVisibility();
     call.resolve();
   }
 
+  @PluginMethod
   public void disable(PluginCall call) {
     setWidgetPreference(false);
-    hideOverlay();
+    removeOverlay();
     call.resolve();
   }
 
+  @PluginMethod
   public void getState(PluginCall call) {
     JSObject result = new JSObject();
     result.put("enabled", isWidgetEnabled());
@@ -69,12 +77,14 @@ public class OverlayWidgetPlugin extends Plugin {
     call.resolve(result);
   }
 
+  @PluginMethod
   public void hasPermission(PluginCall call) {
     JSObject result = new JSObject();
     result.put("granted", hasOverlayPermission());
     call.resolve(result);
   }
 
+  @PluginMethod
   public void requestPermission(PluginCall call) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       JSObject result = new JSObject();
@@ -92,7 +102,7 @@ public class OverlayWidgetPlugin extends Plugin {
 
     Intent intent = new Intent(
         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-        Uri.parse("package:" + getContext().getPackageName())
+        Uri.parse("package:" + getSafePackageName())
     );
     pendingPermissionCall = call;
     startActivityForResult(call, intent, REQUEST_OVERLAY_PERMISSION);
@@ -109,34 +119,36 @@ public class OverlayWidgetPlugin extends Plugin {
       pendingPermissionCall = null;
       if (!granted) {
         setWidgetPreference(false);
-        hideOverlay();
+        removeOverlay();
       } else if (isWidgetEnabled()) {
-        boolean shown = showOverlay();
-        if (!shown) {
-          setWidgetPreference(false);
+        if (!appInForeground) {
+          boolean shown = ensureOverlay();
+          if (!shown) {
+            setWidgetPreference(false);
+            removeOverlay();
+          }
+        } else {
+          removeOverlay();
         }
       }
     }
   }
 
-  @Override
-  protected void handleOnPause() {
-    super.handleOnPause();
-    // keep overlay visible, no action needed
+  @PluginMethod
+  public void setAppState(PluginCall call) {
+    boolean active = call.getBoolean("active", true);
+    appInForeground = active;
+    syncOverlayVisibility();
+    call.resolve();
   }
 
-  @Override
-  protected void handleOnDestroy() {
-    super.handleOnDestroy();
-    hideOverlay();
-  }
 
-  private boolean showOverlay() {
+  private boolean ensureOverlay() {
     if (!hasOverlayPermission()) {
       return false;
     }
 
-    final Context context = getContext();
+    final Context context = getEffectiveContext();
     if (context == null) {
       return false;
     }
@@ -145,20 +157,49 @@ public class OverlayWidgetPlugin extends Plugin {
       return true;
     }
 
-    CountDownLatch latch = new CountDownLatch(1);
+    CountDownLatch latch;
+    boolean shouldCreate = false;
+    synchronized (OVERLAY_LOCK) {
+      if (overlayView != null) {
+        return true;
+      }
+      if (overlayCreationLatch == null) {
+        overlayCreationLatch = new CountDownLatch(1);
+        shouldCreate = true;
+      }
+      latch = overlayCreationLatch;
+    }
+
+    if (!shouldCreate) {
+      try {
+        latch.await(500, TimeUnit.MILLISECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      return overlayView != null;
+    }
+
     AtomicBoolean success = new AtomicBoolean(false);
+    CountDownLatch creationLatch = latch;
 
     getBridge().executeOnMainThread(() -> {
       try {
-        windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        if (windowManager == null) {
+        synchronized (OVERLAY_LOCK) {
+          if (overlayView != null) {
+            success.set(true);
+            return;
+          }
+        }
+
+        WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        if (manager == null) {
           return;
         }
 
         LayoutInflater inflater = LayoutInflater.from(context);
-        overlayView = inflater.inflate(R.layout.overlay_widget_layout, null);
+        View view = inflater.inflate(R.layout.overlay_widget_layout, null);
 
-        View button = overlayView.findViewById(R.id.overlay_container);
+        View button = view.findViewById(R.id.overlay_container);
         if (button != null) {
           button.setOnClickListener(v -> {
             Intent intent = new Intent(context, MainActivity.class);
@@ -171,7 +212,7 @@ public class OverlayWidgetPlugin extends Plugin {
             ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             : WindowManager.LayoutParams.TYPE_PHONE;
 
-        overlayParams = new WindowManager.LayoutParams(
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutType,
@@ -181,23 +222,35 @@ public class OverlayWidgetPlugin extends Plugin {
                 | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         );
-        overlayParams.gravity = Gravity.TOP | Gravity.END;
-        overlayParams.x = 48;
-        overlayParams.y = 200;
+        params.gravity = Gravity.TOP | Gravity.END;
+        params.x = 48;
+        params.y = 200;
 
-        setupDrag(overlayView);
+        synchronized (OVERLAY_LOCK) {
+          windowManager = manager;
+          overlayParams = params;
+          overlayView = view;
+        }
 
-        windowManager.addView(overlayView, overlayParams);
+        setupDrag(view);
+
+        manager.addView(view, params);
         success.set(true);
       } catch (Exception ex) {
-        overlayView = null;
+        synchronized (OVERLAY_LOCK) {
+          overlayView = null;
+          overlayParams = null;
+        }
       } finally {
-        latch.countDown();
+        creationLatch.countDown();
+        synchronized (OVERLAY_LOCK) {
+          overlayCreationLatch = null;
+        }
       }
     });
 
     try {
-      latch.await(500, TimeUnit.MILLISECONDS);
+      creationLatch.await(500, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -205,20 +258,32 @@ public class OverlayWidgetPlugin extends Plugin {
     return success.get();
   }
 
-  private void hideOverlay() {
-    if (overlayView == null || windowManager == null) {
-      overlayView = null;
-      return;
+  private void removeOverlay() {
+    final View viewToRemove;
+    final WindowManager manager;
+    synchronized (OVERLAY_LOCK) {
+      viewToRemove = overlayView;
+      manager = windowManager;
+      if (viewToRemove == null || manager == null) {
+        overlayView = null;
+        overlayParams = null;
+        return;
+      }
     }
 
     CountDownLatch latch = new CountDownLatch(1);
     getBridge().executeOnMainThread(() -> {
       try {
-        windowManager.removeViewImmediate(overlayView);
+        manager.removeViewImmediate(viewToRemove);
       } catch (Exception ignored) {
         // ignore
       } finally {
-        overlayView = null;
+        synchronized (OVERLAY_LOCK) {
+          if (overlayView == viewToRemove) {
+            overlayView = null;
+            overlayParams = null;
+          }
+        }
         latch.countDown();
       }
     });
@@ -279,7 +344,7 @@ public class OverlayWidgetPlugin extends Plugin {
   }
 
   private void setWidgetPreference(boolean enabled) {
-    Context context = getContext();
+    Context context = getAppContext();
     if (context == null) {
       return;
     }
@@ -291,7 +356,7 @@ public class OverlayWidgetPlugin extends Plugin {
   }
 
   private boolean isWidgetEnabled() {
-    Context context = getContext();
+    Context context = getAppContext();
     if (context == null) {
       return false;
     }
@@ -304,7 +369,56 @@ public class OverlayWidgetPlugin extends Plugin {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       return true;
     }
-    Context context = getContext();
+    Context context = getEffectiveContext();
     return context != null && Settings.canDrawOverlays(context);
+  }
+
+  private void syncOverlayVisibility() {
+    if (!isWidgetEnabled() || !hasOverlayPermission()) {
+      removeOverlay();
+      return;
+    }
+
+    if (appInForeground) {
+      removeOverlay();
+      return;
+    }
+
+    if (!ensureOverlay()) {
+      setWidgetPreference(false);
+      removeOverlay();
+    }
+  }
+
+  private Context getAppContext() {
+    if (appContext != null) {
+      return appContext;
+    }
+    Context context = getContext();
+    if (context != null) {
+      appContext = context.getApplicationContext();
+      return appContext;
+    }
+    if (getActivity() != null) {
+      appContext = getActivity().getApplicationContext();
+      return appContext;
+    }
+    return null;
+  }
+
+  private Context getEffectiveContext() {
+    Context context = getContext();
+    if (context != null) {
+      return context;
+    }
+    if (appContext != null) {
+      return appContext;
+    }
+    return getActivity();
+  }
+
+  private String getSafePackageName() {
+    Context context = getEffectiveContext();
+    return context != null ? context.getPackageName() : "";
   }
 }

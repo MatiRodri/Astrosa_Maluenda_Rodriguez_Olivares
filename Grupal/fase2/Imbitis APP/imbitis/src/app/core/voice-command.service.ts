@@ -89,7 +89,7 @@ export class VoiceCommandService {
       return 'no-permission';
     }
 
-    if (this.listening && this.webRecognition) {
+    if (this.listening && !this.webRecognition) {
       return 'listening';
     }
 
@@ -154,12 +154,14 @@ export class VoiceCommandService {
 
   async deactivate(): Promise<void> {
     if (this.isNativePlatform()) {
-      try {
-        await this.speech.stopListening();
-      } catch {
-        // ignore plugin stop errors to avoid blocking UI
-      }
       await this.detachListeners();
+      if (this.isIOSPlatform()) {
+        try {
+          await this.speech.stopListening();
+        } catch {
+          // ignore plugin stop errors to avoid blocking UI
+        }
+      }
     } else {
       this.destroyBrowserRecognition();
     }
@@ -208,7 +210,7 @@ export class VoiceCommandService {
     this.recognitionSub = stream.subscribe({
       next: matches => this.handleMatches(matches ?? [], onListo),
       error: () => {
-        void this.deactivate();
+        void this.restartNativeListening(onListo);
       },
     });
   }
@@ -228,6 +230,9 @@ export class VoiceCommandService {
     }
     this.lastTrigger = now;
     this.zone.run(onListo);
+    if (this.isNativePlatform()) {
+      void this.restartNativeListening(onListo);
+    }
   }
 
   private isNativePlatform(): boolean {
@@ -314,5 +319,26 @@ export class VoiceCommandService {
       return navigator.language;
     }
     return 'es-419';
+  }
+
+  private async restartNativeListening(onListo: () => void): Promise<void> {
+    if (!this.listening || !this.isNativePlatform()) {
+      return;
+    }
+    await this.detachListeners();
+    await new Promise(resolve => setTimeout(resolve, 150));
+    try {
+      this.startListening(onListo);
+    } catch {
+      this.listening = false;
+    }
+  }
+
+  private isIOSPlatform(): boolean {
+    try {
+      return Capacitor.getPlatform?.() === 'ios';
+    } catch {
+      return false;
+    }
   }
 }
